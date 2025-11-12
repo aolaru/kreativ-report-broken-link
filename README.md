@@ -18,4 +18,5 @@ Each report is automatically stored in your dashboard and emailed to you.
 == Frequently Asked Questions ==
 
 = Does it slow down my site? =
+
 No — it loads a tiny inline JavaScript only on single posts.
