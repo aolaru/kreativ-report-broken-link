@@ -16,5 +16,6 @@ Each report is automatically stored in your dashboard and emailed to you.
 3. Go to *Kreativ Broken Links → Settings* to configure your email.
 
 == Frequently Asked Questions ==
+
 = Does it slow down my site? =
 No — it loads a tiny inline JavaScript only on single posts.
