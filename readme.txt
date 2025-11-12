@@ -3,7 +3,7 @@ Contributors: andreiolaru
 Tags: broken links, link report, reporting, maintenance, seo, feedback, error tracking, link checker, website health
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,7 +32,7 @@ No — it loads a tiny inline JavaScript only on single posts.
 == Changelog ==
 
 
-=1.1.0 = November 2025
+= 1.1.0 =
 * Added pagination to the Reports admin table for easier browsing of large datasets.
 * Improved database query performance and cleaner report loading logic.
 * Updated versioning and minor code optimizations for WordPress 6.8 compatibility.
