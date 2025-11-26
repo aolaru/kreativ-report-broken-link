@@ -1,7 +1,6 @@
 # kreativ-report-broken-link
 A simple, one-click way for visitors to report broken links directly from your posts.
 
-== Description ==
 Kreativ Report Broken Link lets your readers report broken links with one click.
 Each report is automatically saved in your dashboard and emailed to you.
 
