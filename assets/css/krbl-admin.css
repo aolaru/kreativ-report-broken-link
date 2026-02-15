@@ -1,0 +1,81 @@
+/* KRBL admin UI styles */
+.krbl-actions-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin:10px 0 12px;
+}
+
+.krbl-pagination{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:16px 0;
+}
+
+.krbl-page-info{
+  color:#50575e;
+  font-size:13px;
+}
+
+.krbl-pagination ul{margin:0;}
+.krbl-pagination li{display:inline-block;margin:0 2px;}
+
+.krbl-pagination a,
+.krbl-pagination span{
+  padding:4px 8px;
+  border-radius:6px;
+  text-decoration:none;
+}
+
+.krbl-pagination .current{
+  background:#2271b1;
+  color:#fff;
+}
+
+/* colored action buttons */
+.button.krbl-btn-resolve{
+  border-color:#46b450 !important;
+  color:#1e7e34 !important;
+  background:#f1faf4 !important;
+  font-weight:500;
+}
+.button.krbl-btn-resolve:hover{
+  background:#e6f6eb !important;
+  color:#155724 !important;
+}
+.button.krbl-btn-resolve:focus-visible{
+  outline:2px solid rgba(70,180,80,.6);
+  outline-offset:2px;
+}
+
+.button.krbl-btn-ignore{
+  border-color:#dc3232 !important;
+  color:#a00 !important;
+  background:#fdf2f2 !important;
+  font-weight:500;
+}
+.button.krbl-btn-ignore:hover{
+  background:#fbeaea !important;
+  color:#7a0000 !important;
+}
+.button.krbl-btn-ignore:focus-visible{
+  outline:2px solid rgba(220,50,50,.6);
+  outline-offset:2px;
+}
+
+.button.krbl-btn-reopen{
+  border-color:#8c8f94 !important;
+  color:#50575e !important;
+  background:#f6f7f7 !important;
+  font-weight:500;
+}
+.button.krbl-btn-reopen:hover{
+  background:#eef0f1 !important;
+  color:#32373c !important;
+}
+
+.krbl-actions-inline{white-space:nowrap;}
+.krbl-actions-inline .button{margin-right:6px;}
