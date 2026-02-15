@@ -1,83 +1,102 @@
 === Kreativ Report Broken Link ===
-Contributors: anolaru
-Tags: broken links, link report, seo, link checker, website health
-Requires at least: 5.0
-Tested up to: 6.8
-Stable tag: 1.2.0
+Contributors: andreio
+Tags: broken link, dead link, report link, link checker, maintenance, site quality
+Requires at least: 5.8
+Tested up to: 6.9
+Requires PHP: 7.4
+Stable tag: 1.3.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-A simple, one-click way for visitors to report broken links directly from your posts.
+Let visitors report broken links on a page with one click — see reports in WP Admin and optionally get email notifications.
 
 == Description ==
-Kreativ Report Broken Link lets your readers report broken links with one click.
-Each report is automatically saved in your dashboard and emailed to you.
+Kreativ Report Broken Link adds a simple "Report broken links on this page" button to your selected post types. When a visitor clicks it, a report is saved in your dashboard so you can fix broken URLs faster. The report button is added automatically — no shortcodes or configuration required.
 
-**Perfect for:**
-- Maintaining a clean website
-- Improving SEO by finding dead URLs
-- Collecting feedback from readers
-- Monitoring affiliate links and external resources
-
-== Features ==
-* Automatic “Report Broken Link” button added to every post
-* One-click AJAX reporting — no form fields needed
-* Dashboard with sortable reports and status management (New, Resolved, Ignored)
-* Email notifications to admin or a custom email address
-* Lightweight and GDPR-friendly (no cookies, minimal data)
-* Pagination for easier management of large numbers of reports
+**Key features**
+* One-click reporting (no forms)
+* Admin dashboard list with status actions (Resolve / Ignore / Reopen)
+* Filters + pagination
+* CSV export (AJAX, no page reload)
+* Duplicate protection (1 report per post per IP per 24h)
+* Optional email notifications
 
 == Installation ==
-1. Upload the plugin ZIP via *Plugins → Add New → Upload*.
+1. Upload the plugin folder to '/wp-content/plugins/' or install via WordPress.
 2. Activate the plugin.
-3. Go to *Kreativ Broken Links → Settings* to configure your notification email.
+3. Go to **Kreativ Broken Links → Settings** to choose email + post types.
 
 == Frequently Asked Questions ==
 
-= Does it slow down my site? =
-No. The plugin loads a tiny inline JavaScript **only on single posts**, and only when needed.
+= Does this plugin slow down my site? =
+No. Unlike other broken link tools, this plugin does not crawl your site. It only loads a tiny script and a button, making it one of the most lightweight maintenance tools available.
 
-= Does it collect personal data? =
-No user accounts or cookies. Only the reporting visitor’s IP is stored (required for anti-spam), and you can delete reports anytime.
+= Can I customize the button style? =
+Yes! The button uses the '.krbl-report-btn' class. You can easily override the colors and fonts in your theme's CSS or the Customizer.
 
-= Can I customize the button? =
-Yes — you can override the CSS in your theme.
+= Where are the reports saved? =
+Reports are saved in a custom table in your WordPress database and are accessible via the "Kreativ Broken Links" menu in your admin dashboard.
+
+= Does this plugin use a shortcode? =
+No. The “Report Broken Link” button is automatically added to supported post types, so no shortcode or manual placement is required.
+
+= Can I choose where the button appears? =
+The button is automatically displayed on enabled post types. Additional placement options may be considered in future versions.
+
+= Which post types are supported? =
+Posts and pages are supported. You can enable or disable them from the plugin settings.
+
+= Does this plugin automatically scan for broken links? =
+No. This plugin allows visitors to report broken links they encounter. It does not perform automatic site-wide link scanning.
+
+= Will visitors see admin-only data? =
+No. Visitors can only submit reports. All management actions are available only in the WordPress admin dashboard.
+
+= Is the plugin open source? =
+Yes. The plugin is open source and maintained on GitHub:
+https://github.com/aolaru/kreativ-report-broken-link
+
+== Screenshots ==
+1. Frontend "Report broken links on this page" button with confirmation message.
+2. Reports dashboard with resolve and ignore actions (All / New / Resolved / Ignored).
+3. Settings screen (email notifications + enabled post types).
+
+== Upgrade Notice ==
+= 1.3.7 =
+Many improvements and important bug fixes. Recommended update for all users.
 
 == Changelog ==
+= 1.3.7 =
+* Fixed fatal error in the admin reports page footer.
+* Fixed CSV export query bug for filtered exports.
+* Improved frontend report button behavior and compatibility.
+* Improved admin UI spacing and accessibility styles.
+
+= 1.3.2 =
+* Fixed fatal error caused by invalid esc_js__() usage
+* Fixed AJAX CSV export not triggering on some admin pages
+
+= 1.3.1 =
+* Added AJAX CSV export (no page reload)
+* Improved pagination UI (Page X of Y + cleaner styling)
+* Added overview summary text (New / Resolved / Ignored)
+* General admin UI polish
+
+= 1.3.0 =
+* Added duplicate report protection (per post/IP, 24h)
+* Added enabled post types setting
+* Added frontend CSS styling and separate JS file
+* Added CSV export
 
 = 1.2.0 =
-* Security improvements based on WordPress.org review feedback.
-* Added full sanitization for GET, POST, and SERVER inputs.
-* Added strict nonce validation (sanitize + wp_verify_nonce).
-* Updated all action names and slugs to use the 4+ character prefix (krbl_).
-* Fixed pagination URL handling.
-* Improved escaping in admin table output.
-* Matching PHPCS/PluginCheck compliance.
-* General cleanup and prep for public release.
+* Added admin dashboard page to view reported broken links
+* Added status handling for reports (new / resolved / ignored)
+* Added email notification option for new reports
+* Improved security with nonces and input sanitization
+* General stability and code cleanup
 
 = 1.1.0 =
-* Added pagination to the Reports admin table for large datasets.
-* Improved database query performance.
-* Compatibility improvements for WordPress 6.8.
-* Additional sanitization for admin actions.
-
-= 1.0.0 =
-* Market-ready release.
-* Added status management (New, Resolved, Ignored).
-* Added filters for status views (All, New, Resolved, Ignored).
-* Improved email notification formatting.
-* Added settings page for notification email.
-* Added uninstall cleanup and improved sanitization.
-
-= 0.2.0 =
-* Added admin Reports screen.
-* Added email notifications when a broken link is reported.
-* Added plugin settings page.
-
-= 0.1.0 =
-* Added one-click AJAX "Report Broken Link" button to posts.
-* Added database table for storing broken link reports.
-
-= 0.0.1 =
-* Initial internal version.
-* Base plugin structure and activation hook.
+* Initial public release
+* Added frontend "Report Broken Link" button
+* Added AJAX submission for reports
+* Stored reports in a custom database table
