@@ -3,7 +3,7 @@
  * Plugin Name:       Kreativ Report Broken Link
  * Plugin URI:        https://wordpress.org/plugins/kreativ-report-broken-link/
  * Description:       Adds a “Report Broken Link” button on selected post types and stores reports in the dashboard. Optional email notifications.
- * Version:           1.3.7
+ * Version:           1.3.8
  * Author:            Andrei Olaru
  * Author URI:        https://kreativfont.com
  * License:           GPL-2.0+
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class KRBL_Plugin {
 
-	const VERSION             = '1.3.7';
+	const VERSION             = '1.3.8';
 	const TABLE               = 'broken_link_reports';
 	const NONCE               = 'krbl_nonce';
 	const OPTION_NOTIFY_EMAIL = 'krbl_notify_email';

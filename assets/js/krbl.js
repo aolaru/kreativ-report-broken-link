@@ -11,8 +11,17 @@ document.addEventListener("click", function (e) {
   btn.classList.add("is-loading");
 
   var txt = btn.querySelector(".krbl-text");
+  var originalText = txt ? txt.textContent : "";
   if (txt) {
     txt.textContent = "⏳ " + (KRBL?.i18n?.sending || "Sending...");
+  }
+
+  function resetButton() {
+    btn.disabled = false;
+    btn.classList.remove("is-loading");
+    if (txt) {
+      txt.textContent = originalText;
+    }
   }
 
   var fd = new FormData();
@@ -49,7 +58,7 @@ document.addEventListener("click", function (e) {
         "<div class='krbl-msg error'>⚠️ " +
         (KRBL?.i18n?.fail || "Failed to send. Try again later.") +
         "</div>";
-      btn.remove();
+      resetButton();
     })
     .catch(function () {
       if (!out) return;
@@ -58,6 +67,6 @@ document.addEventListener("click", function (e) {
         "<div class='krbl-msg error'>⚠️ " +
         (KRBL?.i18n?.error || "Error. Please try again.") +
         "</div>";
-      btn.remove();
+      resetButton();
     });
 });
