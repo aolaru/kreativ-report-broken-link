@@ -3,7 +3,7 @@
  * Plugin Name:       Kreativ Report Broken Link
  * Plugin URI:        https://wordpress.org/plugins/kreativ-report-broken-link/
  * Description:       Adds a “Report Broken Link” button on selected post types and stores reports in the dashboard. Optional email notifications.
- * Version:           1.3.8
+ * Version:           1.3.9
  * Author:            Andrei Olaru
  * Author URI:        https://kreativfont.com
  * License:           GPL-2.0+
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class KRBL_Plugin {
 
-	const VERSION             = '1.3.8';
+	const VERSION             = '1.3.9';
 	const TABLE               = 'broken_link_reports';
 	const NONCE               = 'krbl_nonce';
 	const OPTION_NOTIFY_EMAIL = 'krbl_notify_email';
@@ -543,6 +543,11 @@ final class KRBL_Plugin {
 			wp_send_json_error( __( 'Invalid post.', 'kreativ-report-broken-link' ) );
 		}
 
+		$enabled = (array) get_option( self::OPTION_POST_TYPES, array( 'post' ) );
+		if ( ! in_array( $post->post_type, $enabled, true ) ) {
+			wp_send_json_error( __( 'Reporting is not enabled for this content type.', 'kreativ-report-broken-link' ) );
+		}
+
 		$url = esc_url_raw( get_permalink( $post_id ) );
 		if ( ! $url ) {
 			wp_send_json_error( __( 'Invalid URL.', 'kreativ-report-broken-link' ) );
@@ -583,7 +588,7 @@ final class KRBL_Plugin {
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
-		$wpdb->insert(
+		$inserted = $wpdb->insert(
 			$table,
 			array(
 				'post_id'    => $post_id,
@@ -594,6 +599,10 @@ final class KRBL_Plugin {
 			),
 			array( '%d', '%s', '%s', '%s', '%s' )
 		);
+
+		if ( false === $inserted ) {
+			wp_send_json_error( __( 'Failed to save report. Please try again later.', 'kreativ-report-broken-link' ) );
+		}
 
 		$this->bust_cache();
 

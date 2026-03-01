@@ -4,7 +4,7 @@ Tags: broken link, dead link, report link, link checker, maintenance, site quali
 Requires at least: 5.8
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.3.8
+Stable tag: 1.3.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,10 +62,14 @@ https://github.com/aolaru/kreativ-report-broken-link
 3. Settings screen (email notifications + enabled post types).
 
 == Upgrade Notice ==
-= 1.3.8 =
-Fixes frontend retry behavior when a report submission fails.
+= 1.3.9 =
+Improves report validation and fixes backend handling for failed saves.
 
 == Changelog ==
+= 1.3.9 =
+* Enforced enabled post types in the AJAX submission handler.
+* Fixed false-success responses when saving a report fails.
+
 = 1.3.8 =
 * Fixed frontend error handling so visitors can retry after temporary submission failures.
 
