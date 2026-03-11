@@ -27,6 +27,9 @@ final class KRBL_Plugin {
 	const NONCE               = 'krbl_nonce';
 	const OPTION_NOTIFY_EMAIL = 'krbl_notify_email';
 	const OPTION_POST_TYPES   = 'krbl_enabled_post_types';
+	const OPTION_RETENTION    = 'krbl_retention_days';
+	const OPTION_ANONYMIZE_IP = 'krbl_anonymize_ip';
+	const OPTION_LAST_CLEANUP = 'krbl_last_cleanup';
 
 	/**
 	 * Cache group.
@@ -240,6 +243,14 @@ final class KRBL_Plugin {
 			update_option( self::OPTION_POST_TYPES, array( 'post' ) );
 		}
 
+		if ( false === get_option( self::OPTION_RETENTION, false ) ) {
+			update_option( self::OPTION_RETENTION, 0 );
+		}
+
+		if ( false === get_option( self::OPTION_ANONYMIZE_IP, false ) ) {
+			update_option( self::OPTION_ANONYMIZE_IP, 0 );
+		}
+
 		// Ensure cache version exists.
 		$this->get_cache_version();
 	}
@@ -268,6 +279,26 @@ final class KRBL_Plugin {
 				'type'              => 'array',
 				'sanitize_callback' => array( $this, 'sanitize_post_types' ),
 				'default'           => array( 'post' ),
+			)
+		);
+
+		register_setting(
+			'krbl_settings',
+			self::OPTION_RETENTION,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( $this, 'sanitize_retention_days' ),
+				'default'           => 0,
+			)
+		);
+
+		register_setting(
+			'krbl_settings',
+			self::OPTION_ANONYMIZE_IP,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( $this, 'sanitize_checkbox' ),
+				'default'           => 0,
 			)
 		);
 
@@ -325,6 +356,41 @@ final class KRBL_Plugin {
 			'krbl_settings',
 			'krbl_display'
 		);
+
+		add_settings_section(
+			'krbl_privacy',
+			__( 'Privacy & Retention', 'kreativ-report-broken-link' ),
+			function () {
+				echo '<p>' . esc_html__( 'Control report data privacy and cleanup behavior.', 'kreativ-report-broken-link' ) . '</p>';
+			},
+			'krbl_settings'
+		);
+
+		add_settings_field(
+			self::OPTION_ANONYMIZE_IP,
+			__( 'Anonymize Visitor IP', 'kreativ-report-broken-link' ),
+			function () {
+				$enabled = (int) get_option( self::OPTION_ANONYMIZE_IP, 0 );
+				echo '<label>';
+				echo '<input type="checkbox" name="' . esc_attr( self::OPTION_ANONYMIZE_IP ) . '" value="1" ' . checked( 1, $enabled, false ) . ' />';
+				echo ' ' . esc_html__( 'Store anonymized IP addresses in reports.', 'kreativ-report-broken-link' );
+				echo '</label>';
+			},
+			'krbl_settings',
+			'krbl_privacy'
+		);
+
+		add_settings_field(
+			self::OPTION_RETENTION,
+			__( 'Auto-Delete Reports After (days)', 'kreativ-report-broken-link' ),
+			function () {
+				$days = (int) get_option( self::OPTION_RETENTION, 0 );
+				echo '<input type="number" min="0" step="1" class="small-text" name="' . esc_attr( self::OPTION_RETENTION ) . '" value="' . esc_attr( (string) $days ) . '" />';
+				echo '<p class="description">' . esc_html__( 'Set to 0 to keep reports indefinitely.', 'kreativ-report-broken-link' ) . '</p>';
+			},
+			'krbl_settings',
+			'krbl_privacy'
+		);
 	}
 
 	/**
@@ -351,6 +417,26 @@ final class KRBL_Plugin {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Sanitize retention days option.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return int
+	 */
+	public function sanitize_retention_days( $value ) {
+		return max( 0, absint( $value ) );
+	}
+
+	/**
+	 * Sanitize checkbox-like setting to 0|1.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return int
+	 */
+	public function sanitize_checkbox( $value ) {
+		return empty( $value ) ? 0 : 1;
 	}
 
 	/**
@@ -446,6 +532,74 @@ final class KRBL_Plugin {
 	}
 
 	/**
+	 * Optionally anonymize IP addresses for privacy.
+	 *
+	 * @param string $ip Raw IP.
+	 * @return string
+	 */
+	private function maybe_anonymize_ip( $ip ) {
+		if ( empty( $ip ) || ! (bool) get_option( self::OPTION_ANONYMIZE_IP, 0 ) ) {
+			return $ip;
+		}
+
+		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+			$parts    = explode( '.', $ip );
+			$parts[3] = '0';
+			return implode( '.', $parts );
+		}
+
+		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+			$packed = inet_pton( $ip );
+			if ( false === $packed ) {
+				return $ip;
+			}
+
+			$masked = substr( $packed, 0, 6 ) . str_repeat( "\0", 10 );
+			$out    = inet_ntop( $masked );
+			return false !== $out ? $out : $ip;
+		}
+
+		return $ip;
+	}
+
+	/**
+	 * Cleanup old reports using retention setting (runs max once per day).
+	 *
+	 * @return void
+	 */
+	private function maybe_cleanup_old_reports() {
+		$days = (int) get_option( self::OPTION_RETENTION, 0 );
+		if ( $days <= 0 ) {
+			return;
+		}
+
+		$last_cleanup = (int) get_option( self::OPTION_LAST_CLEANUP, 0 );
+		if ( $last_cleanup > 0 && ( time() - $last_cleanup ) < DAY_IN_SECONDS ) {
+			return;
+		}
+
+		global $wpdb;
+		$table = $this->table_name;
+
+		$threshold = gmdate( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table cleanup is required.
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
+				"DELETE FROM {$table} WHERE created_at < %s",
+				$threshold
+			)
+		);
+
+		update_option( self::OPTION_LAST_CLEANUP, time(), false );
+
+		if ( is_int( $deleted ) && $deleted > 0 ) {
+			$this->bust_cache();
+		}
+	}
+
+	/**
 	 * Handle Resolve/Ignore/Reopen actions early (before output).
 	 *
 	 * @return void
@@ -528,7 +682,6 @@ final class KRBL_Plugin {
 	 * @return void
 	 */
 	public function handle_submit() {
-
 		if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), self::NONCE ) ) {
 			wp_send_json_error( __( 'Invalid nonce.', 'kreativ-report-broken-link' ) );
 		}
@@ -537,6 +690,8 @@ final class KRBL_Plugin {
 		if ( ! $post_id ) {
 			wp_send_json_error( __( 'Invalid post ID.', 'kreativ-report-broken-link' ) );
 		}
+
+		$this->maybe_cleanup_old_reports();
 
 		$post = get_post( $post_id );
 		if ( ! $post || 'publish' !== $post->post_status ) {
@@ -560,6 +715,7 @@ final class KRBL_Plugin {
 		if ( '' === $ip ) {
 			$ip = 'unknown';
 		}
+		$ip = $this->maybe_anonymize_ip( $ip );
 
 		$cache_key = 'dup_' . md5( (string) $post_id . '|' . (string) $ip );
 
@@ -833,6 +989,8 @@ final class KRBL_Plugin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
+
+		$this->maybe_cleanup_old_reports();
 
 		global $wpdb;
 		$table = $this->table_name;
