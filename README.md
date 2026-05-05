@@ -21,7 +21,7 @@ Each report is automatically saved in your dashboard and emailed to you.
 == Installation ==
 1. Upload the plugin ZIP via *Plugins → Add New → Upload*.
 2. Activate the plugin.
-3. Go to *Kreativ Broken Links → Settings* to configure your notification email.
+3. Go to *Broken Links* and open the *Settings* tab to configure your notification email.
 
 == Frequently Asked Questions ==
 

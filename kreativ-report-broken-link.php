@@ -3,7 +3,7 @@
  * Plugin Name:       Kreativ Report Broken Link
  * Plugin URI:        https://wordpress.org/plugins/kreativ-report-broken-link/
  * Description:       Adds a “Report Broken Link” button on selected post types and stores reports in the dashboard. Optional email notifications.
- * Version:           1.3.9
+ * Version:           1.4.0
  * Author:            Andrei Olaru
  * Author URI:        https://kreativfont.com
  * License:           GPL-2.0+
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class KRBL_Plugin {
 
-	const VERSION             = '1.3.9';
+	const VERSION             = '1.4.0';
 	const TABLE               = 'broken_link_reports';
 	const NONCE               = 'krbl_nonce';
 	const OPTION_NOTIFY_EMAIL = 'krbl_notify_email';
@@ -55,6 +55,7 @@ final class KRBL_Plugin {
 
 		// Handle row actions early (before output) to ensure redirects work reliably.
 		add_action( 'admin_init', array( $this, 'handle_row_actions' ) );
+		add_action( 'admin_init', array( $this, 'handle_legacy_settings_page' ) );
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'wp_ajax_krbl_submit_report', array( $this, 'handle_submit' ) );
@@ -677,6 +678,35 @@ final class KRBL_Plugin {
 	}
 
 	/**
+	 * Redirect legacy settings page links to the settings tab on the main screen.
+	 *
+	 * @return void
+	 */
+	public function handle_legacy_settings_page() {
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading admin page slug.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		if ( 'krbl_settings' !== $page ) {
+			return;
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page' => 'krbl_reports',
+					'tab'  => 'settings',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
 	 * Handle report submit (AJAX).
 	 *
 	 * @return void
@@ -898,8 +928,8 @@ final class KRBL_Plugin {
 	public function admin_menu() {
 
 		add_menu_page(
-			__( 'Kreativ Broken Links', 'kreativ-report-broken-link' ),
-			__( 'Kreativ Broken Links', 'kreativ-report-broken-link' ),
+			__( 'Broken Links', 'kreativ-report-broken-link' ),
+			__( 'Broken Links', 'kreativ-report-broken-link' ),
 			'manage_options',
 			'krbl_reports',
 			array( $this, 'render_admin_page' ),
@@ -915,37 +945,50 @@ final class KRBL_Plugin {
 			'krbl_reports',
 			array( $this, 'render_admin_page' )
 		);
-
-		add_submenu_page(
-			'krbl_reports',
-			__( 'Settings', 'kreativ-report-broken-link' ),
-			__( 'Settings', 'kreativ-report-broken-link' ),
-			'manage_options',
-			'krbl_settings',
-			array( $this, 'render_settings_page' )
-		);
 	}
 
 	/**
-	 * Settings page output.
+	 * Render navigation tabs for the admin page.
+	 *
+	 * @param string $active_tab Active tab slug.
+	 * @return void
+	 */
+	private function render_admin_tabs( $active_tab ) {
+		$tabs = array(
+			'reports'  => __( 'Reports', 'kreativ-report-broken-link' ),
+			'settings' => __( 'Settings', 'kreativ-report-broken-link' ),
+		);
+
+		echo '<nav class="nav-tab-wrapper krbl-nav-tabs" aria-label="' . esc_attr__( 'Broken Links sections', 'kreativ-report-broken-link' ) . '">';
+
+		foreach ( $tabs as $slug => $label ) {
+			$url   = add_query_arg(
+				array(
+					'page' => 'krbl_reports',
+					'tab'  => $slug,
+				),
+				admin_url( 'admin.php' )
+			);
+			$class = ( $active_tab === $slug ) ? ' nav-tab-active' : '';
+
+			echo '<a href="' . esc_url( $url ) . '" class="nav-tab' . esc_attr( $class ) . '">' . esc_html( $label ) . '</a>';
+		}
+
+		echo '</nav>';
+	}
+
+	/**
+	 * Render settings tab content.
 	 *
 	 * @return void
 	 */
-	public function render_settings_page() {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-
-		echo '<div class="wrap"><h1>' . esc_html__( 'Kreativ Broken Links – Settings', 'kreativ-report-broken-link' ) . '</h1>';
+	private function render_settings_tab() {
+		echo '<h1>' . esc_html__( 'Broken Links - Settings', 'kreativ-report-broken-link' ) . '</h1>';
 		echo '<form method="post" action="options.php">';
 		settings_fields( 'krbl_settings' );
 		do_settings_sections( 'krbl_settings' );
 		submit_button();
 		echo '</form>';
-
-		$this->render_kreativ_footer();
-
-		echo '</div>';
 	}
 
 	/**
@@ -991,6 +1034,22 @@ final class KRBL_Plugin {
 		}
 
 		$this->maybe_cleanup_old_reports();
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading tab selector.
+		$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'reports';
+		if ( ! in_array( $tab, array( 'reports', 'settings' ), true ) ) {
+			$tab = 'reports';
+		}
+
+		echo '<div class="wrap">';
+		$this->render_admin_tabs( $tab );
+
+		if ( 'settings' === $tab ) {
+			$this->render_settings_tab();
+			$this->render_kreativ_footer();
+			echo '</div>';
+			return;
+		}
 
 		global $wpdb;
 		$table = $this->table_name;
@@ -1089,8 +1148,7 @@ final class KRBL_Plugin {
 
 		$ajax_export_nonce = wp_create_nonce( 'krbl_export' );
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Kreativ Broken Link Reports', 'kreativ-report-broken-link' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Broken Link Reports', 'kreativ-report-broken-link' ) . '</h1>';
 
 		// Notices (shown after redirect).
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading message param.

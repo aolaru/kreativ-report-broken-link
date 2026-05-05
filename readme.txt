@@ -4,7 +4,7 @@ Tags: broken link, dead link, report link, link checker, maintenance, site quali
 Requires at least: 5.8
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.3.9
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,7 +24,7 @@ Kreativ Report Broken Link adds a simple "Report broken links on this page" butt
 == Installation ==
 1. Upload the plugin folder to '/wp-content/plugins/' or install via WordPress.
 2. Activate the plugin.
-3. Go to **Kreativ Broken Links → Settings** to choose email + post types.
+3. Go to **Broken Links** and open the **Settings** tab to choose email + post types.
 
 == Frequently Asked Questions ==
 
@@ -35,7 +35,7 @@ No. Unlike other broken link tools, this plugin does not crawl your site. It onl
 Yes! The button uses the '.krbl-report-btn' class. You can easily override the colors and fonts in your theme's CSS or the Customizer.
 
 = Where are the reports saved? =
-Reports are saved in a custom table in your WordPress database and are accessible via the "Kreativ Broken Links" menu in your admin dashboard.
+Reports are saved in a custom table in your WordPress database and are accessible via the "Broken Links" menu in your admin dashboard.
 
 = Does this plugin use a shortcode? =
 No. The “Report Broken Link” button is automatically added to supported post types, so no shortcode or manual placement is required.
@@ -62,10 +62,15 @@ https://github.com/aolaru/kreativ-report-broken-link
 3. Settings screen (email notifications + enabled post types).
 
 == Upgrade Notice ==
-= 1.3.9 =
-Improves report validation and fixes backend handling for failed saves.
+= 1.4.0 =
+Renames the admin menu to Broken Links and moves settings into a tab on the same admin page.
 
 == Changelog ==
+= 1.4.0 =
+* Renamed the WordPress admin menu label to Broken Links.
+* Updated admin page titles to match the new naming.
+* Moved settings into a tab on the same admin screen as reports.
+
 = 1.3.9 =
 * Enforced enabled post types in the AJAX submission handler.
 * Fixed false-success responses when saving a report fails.
