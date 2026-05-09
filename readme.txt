@@ -4,17 +4,19 @@ Tags: broken link, dead link, report link, link checker, maintenance, site quali
 Requires at least: 5.8
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Let visitors report broken links on a page with one click — see reports in WP Admin and optionally get email notifications.
 
 == Description ==
-Kreativ Report Broken Link adds a simple "Report broken links on this page" button to your selected post types. When a visitor clicks it, a report is saved in your dashboard so you can fix broken URLs faster. The report button is added automatically — no shortcodes or configuration required.
+Kreativ Report Broken Link adds a simple "Report broken links on this page" button to your selected post types. Visitors can report the current page with one click, or optionally paste the exact broken URL they found. Reports are saved in your dashboard so you can fix broken URLs faster. The report button is added automatically — no shortcodes or configuration required.
 
 **Key features**
-* One-click reporting (no forms)
+* One-click page reporting with an optional broken URL field
+* Optional exact broken URL capture
+* Internal / external link classification
 * Admin dashboard list with status actions (Resolve / Ignore / Reopen)
 * Filters + pagination
 * CSV export (AJAX, no page reload)
@@ -62,10 +64,19 @@ https://github.com/aolaru/kreativ-report-broken-link
 3. Settings screen (email notifications + enabled post types).
 
 == Upgrade Notice ==
+= 1.5.0 =
+Adds exact broken URL capture, internal/external classification, and report filters by link type.
+
 = 1.4.0 =
 Renames the admin menu to Broken Links and moves settings into a tab on the same admin page.
 
 == Changelog ==
+= 1.5.0 =
+* Added an optional broken URL field to frontend reports.
+* Added internal, external, and unknown link classification.
+* Added link type filters to the reports dashboard and CSV export.
+* Added schema migration support for the new report fields.
+
 = 1.4.0 =
 * Renamed the WordPress admin menu label to Broken Links.
 * Updated admin page titles to match the new naming.

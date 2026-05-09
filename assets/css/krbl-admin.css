@@ -20,6 +20,11 @@
   font-size:13px;
 }
 
+.krbl-filter-separator{
+  color:#8c8f94;
+  margin:0 4px;
+}
+
 .krbl-pagination ul{margin:0;}
 .krbl-pagination li{display:inline-block;margin:0 2px;}
 

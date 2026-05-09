@@ -4,6 +4,31 @@
   border-top:1px solid rgba(0,0,0,.08);
 }
 
+.krbl-target-label{
+  display:block;
+  margin:0 0 6px;
+  font-size:13px;
+  font-weight:600;
+}
+
+.krbl-target-url{
+  display:block;
+  width:min(100%, 520px);
+  box-sizing:border-box;
+  margin:0 0 10px;
+  padding:8px 10px;
+  border:1px solid rgba(0,0,0,.18);
+  border-radius:6px;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+}
+
+.krbl-target-url:focus{
+  outline:2px solid rgba(34,113,177,.6);
+  outline-offset:2px;
+}
+
 .krbl-report-btn{
   display:inline-flex;
   align-items:center;

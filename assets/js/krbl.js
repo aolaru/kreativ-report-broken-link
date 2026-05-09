@@ -6,6 +6,19 @@ document.addEventListener("click", function (e) {
 
   var container = btn.closest(".krbl-report-container");
   var out = container ? container.querySelector(".krbl-output") : null;
+  var targetInput = container ? container.querySelector(".krbl-target-url") : null;
+  var targetUrl = targetInput ? targetInput.value.trim() : "";
+
+  if (targetUrl && targetInput && !targetInput.checkValidity()) {
+    if (out) {
+      out.innerHTML =
+        "<div class='krbl-msg error'>⚠️ " +
+        (KRBL?.i18n?.badUrl || "Enter a valid URL or leave the field empty.") +
+        "</div>";
+    }
+    targetInput.focus();
+    return;
+  }
 
   btn.disabled = true;
   btn.classList.add("is-loading");
@@ -28,6 +41,7 @@ document.addEventListener("click", function (e) {
   fd.append("action", "krbl_submit_report");
   fd.append("_wpnonce", KRBL.nonce);
   fd.append("post_id", btn.dataset.post);
+  fd.append("target_url", targetUrl);
 
   fetch(KRBL.ajaxUrl, { method: "POST", credentials: "same-origin", body: fd })
     .then(function (r) {

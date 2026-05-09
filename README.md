@@ -12,7 +12,9 @@ Each report is automatically saved in your dashboard and emailed to you.
 
 == Features ==
 * Automatic “Report Broken Link” button added to every post
-* One-click AJAX reporting — no form fields needed
+* One-click AJAX page reporting with an optional broken URL field
+* Optional exact broken URL capture
+* Internal and external link classification
 * Dashboard with sortable reports and status management (New, Resolved, Ignored)
 * Email notifications to admin or a custom email address
 * Lightweight and GDPR-friendly (no cookies, minimal data)

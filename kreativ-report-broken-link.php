@@ -3,7 +3,7 @@
  * Plugin Name:       Kreativ Report Broken Link
  * Plugin URI:        https://wordpress.org/plugins/kreativ-report-broken-link/
  * Description:       Adds a “Report Broken Link” button on selected post types and stores reports in the dashboard. Optional email notifications.
- * Version:           1.4.0
+ * Version:           1.5.0
  * Author:            Andrei Olaru
  * Author URI:        https://kreativfont.com
  * License:           GPL-2.0+
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class KRBL_Plugin {
 
-	const VERSION             = '1.4.0';
+	const VERSION             = '1.5.0';
 	const TABLE               = 'broken_link_reports';
 	const NONCE               = 'krbl_nonce';
 	const OPTION_NOTIFY_EMAIL = 'krbl_notify_email';
@@ -30,6 +30,8 @@ final class KRBL_Plugin {
 	const OPTION_RETENTION    = 'krbl_retention_days';
 	const OPTION_ANONYMIZE_IP = 'krbl_anonymize_ip';
 	const OPTION_LAST_CLEANUP = 'krbl_last_cleanup';
+	const OPTION_DB_VERSION   = 'krbl_db_version';
+	const DB_VERSION          = '1.5.0';
 
 	/**
 	 * Cache group.
@@ -51,6 +53,7 @@ final class KRBL_Plugin {
 
 		register_activation_hook( __FILE__, array( $this, 'activate' ) );
 
+		add_action( 'init', array( $this, 'maybe_upgrade_schema' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 
 		// Handle row actions early (before output) to ensure redirects work reliably.
@@ -217,7 +220,7 @@ final class KRBL_Plugin {
 	public function activate() {
 		global $wpdb;
 
-		$table           = $wpdb->prefix . self::TABLE;
+		$table           = $this->table_name;
 		$charset_collate = $wpdb->get_charset_collate();
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -226,11 +229,16 @@ final class KRBL_Plugin {
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			post_id BIGINT UNSIGNED NULL,
 			url TEXT NOT NULL,
+			target_url TEXT NULL,
+			link_type VARCHAR(20) NOT NULL DEFAULT 'unknown',
 			user_ip VARCHAR(45) NULL,
+			ip_hash VARCHAR(64) NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'new',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			KEY status (status),
+			KEY link_type (link_type),
+			KEY ip_hash (ip_hash),
 			KEY post_id (post_id)
 		) $charset_collate;";
 
@@ -254,6 +262,21 @@ final class KRBL_Plugin {
 
 		// Ensure cache version exists.
 		$this->get_cache_version();
+
+		update_option( self::OPTION_DB_VERSION, self::DB_VERSION, false );
+	}
+
+	/**
+	 * Upgrade custom table schema when plugin files are updated.
+	 *
+	 * @return void
+	 */
+	public function maybe_upgrade_schema() {
+		if ( get_option( self::OPTION_DB_VERSION ) === self::DB_VERSION ) {
+			return;
+		}
+
+		$this->activate();
 	}
 
 	/**
@@ -485,6 +508,7 @@ final class KRBL_Plugin {
 					'fail'    => __( 'Failed to send. Try again later.', 'kreativ-report-broken-link' ),
 					'error'   => __( 'Error. Please try again.', 'kreativ-report-broken-link' ),
 					'dup'     => __( 'Already reported recently. Thank you!', 'kreativ-report-broken-link' ),
+					'badUrl'  => __( 'Enter a valid URL or leave the field empty.', 'kreativ-report-broken-link' ),
 				),
 			)
 		);
@@ -513,6 +537,8 @@ final class KRBL_Plugin {
 
 		$button = '
 		<div class="krbl-report-container">
+			<label class="krbl-target-label" for="krbl-target-url-' . esc_attr( $post_id ) . '">' . esc_html__( 'Broken link URL (optional)', 'kreativ-report-broken-link' ) . '</label>
+			<input type="url" class="krbl-target-url" id="krbl-target-url-' . esc_attr( $post_id ) . '" placeholder="' . esc_attr__( 'https://example.com/broken-page', 'kreativ-report-broken-link' ) . '" />
 			<button type="button" class="krbl-report-btn" data-post="' . esc_attr( $post_id ) . '">
 				<span class="krbl-flag" aria-hidden="true">🚩</span>
 				<span class="krbl-text">' . esc_html__( 'Report broken links on this page', 'kreativ-report-broken-link' ) . '</span>
@@ -564,6 +590,37 @@ final class KRBL_Plugin {
 	}
 
 	/**
+	 * Create a stable, non-reversible hash for duplicate detection.
+	 *
+	 * @param string $ip Raw IP.
+	 * @return string
+	 */
+	private function get_ip_hash( $ip ) {
+		return hash( 'sha256', (string) $ip . '|' . wp_salt( 'nonce' ) );
+	}
+
+	/**
+	 * Classify a reported target URL.
+	 *
+	 * @param string $target_url Reported target URL.
+	 * @return string internal|external|unknown
+	 */
+	private function classify_link_type( $target_url ) {
+		if ( '' === $target_url ) {
+			return 'unknown';
+		}
+
+		$target_host = wp_parse_url( $target_url, PHP_URL_HOST );
+		$site_host   = wp_parse_url( home_url(), PHP_URL_HOST );
+
+		if ( ! $target_host || ! $site_host ) {
+			return 'unknown';
+		}
+
+		return strtolower( $target_host ) === strtolower( $site_host ) ? 'internal' : 'external';
+	}
+
+	/**
 	 * Cleanup old reports using retention setting (runs max once per day).
 	 *
 	 * @return void
@@ -582,7 +639,7 @@ final class KRBL_Plugin {
 		global $wpdb;
 		$table = $this->table_name;
 
-		$threshold = gmdate( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
+		$threshold = date_i18n( 'Y-m-d H:i:s', current_time( 'timestamp' ) - ( $days * DAY_IN_SECONDS ) );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table cleanup is required.
 		$deleted = $wpdb->query(
@@ -738,32 +795,44 @@ final class KRBL_Plugin {
 			wp_send_json_error( __( 'Invalid URL.', 'kreativ-report-broken-link' ) );
 		}
 
+		$target_url = '';
+		if ( isset( $_POST['target_url'] ) ) {
+			$raw_target_url = is_scalar( $_POST['target_url'] ) ? trim( wp_unslash( $_POST['target_url'] ) ) : '';
+			$target_url     = esc_url_raw( $raw_target_url, array( 'http', 'https' ) );
+			if ( '' === $target_url && '' !== $raw_target_url ) {
+				wp_send_json_error( __( 'Invalid broken link URL.', 'kreativ-report-broken-link' ) );
+			}
+		}
+		$link_type = $this->classify_link_type( $target_url );
+
 		global $wpdb;
 		$table = $this->table_name;
 
-		$ip = $this->get_ip_address();
-		if ( '' === $ip ) {
-			$ip = 'unknown';
+		$raw_ip = $this->get_ip_address();
+		if ( '' === $raw_ip ) {
+			$raw_ip = 'unknown';
 		}
-		$ip = $this->maybe_anonymize_ip( $ip );
+		$stored_ip = $this->maybe_anonymize_ip( $raw_ip );
+		$ip_hash   = $this->get_ip_hash( $raw_ip );
 
-		$cache_key = 'dup_' . md5( (string) $post_id . '|' . (string) $ip );
+		$cache_key = 'dup_' . md5( (string) $post_id . '|' . (string) $target_url . '|' . (string) $raw_ip );
 
 		$cached = wp_cache_get( $cache_key, $this->cache_group );
 		if ( false !== $cached ) {
 			wp_send_json_error( array( 'code' => 'duplicate' ) );
 		}
 
-		// Prevent duplicates: one report per post per IP per 24 hours.
+		// Prevent duplicates: one report per post/target/IP per 24 hours.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
 		$exists = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
 				"SELECT COUNT(*) FROM {$table}
-				 WHERE post_id = %d AND user_ip = %s
+				 WHERE post_id = %d AND target_url = %s AND ip_hash = %s
 				 AND created_at > DATE_SUB(%s, INTERVAL 24 HOUR)",
 				$post_id,
-				$ip,
+				$target_url,
+				$ip_hash,
 				current_time( 'mysql' )
 			)
 		);
@@ -779,11 +848,14 @@ final class KRBL_Plugin {
 			array(
 				'post_id'    => $post_id,
 				'url'        => $url,
-				'user_ip'    => $ip,
+				'target_url' => $target_url,
+				'link_type'  => $link_type,
+				'user_ip'    => $stored_ip,
+				'ip_hash'    => $ip_hash,
 				'status'     => 'new',
 				'created_at' => current_time( 'mysql' ),
 			),
-			array( '%d', '%s', '%s', '%s', '%s' )
+			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
@@ -805,8 +877,10 @@ final class KRBL_Plugin {
 			/* translators: 1: post title, 2: post ID */
 			$body .= sprintf( __( 'Post: %1$s (ID: %2$d)', 'kreativ-report-broken-link' ), $post_title, $post_id ) . "\n";
 
-			$body .= __( 'URL:', 'kreativ-report-broken-link' ) . ' ' . $url . "\n";
-			$body .= __( 'IP:', 'kreativ-report-broken-link' ) . ' ' . ( $ip ? $ip : 'N/A' ) . "\n";
+			$body .= __( 'Page URL:', 'kreativ-report-broken-link' ) . ' ' . $url . "\n";
+			$body .= __( 'Reported URL:', 'kreativ-report-broken-link' ) . ' ' . ( $target_url ? $target_url : 'N/A' ) . "\n";
+			$body .= __( 'Link Type:', 'kreativ-report-broken-link' ) . ' ' . $link_type . "\n";
+			$body .= __( 'IP:', 'kreativ-report-broken-link' ) . ' ' . ( $stored_ip ? $stored_ip : 'N/A' ) . "\n";
 			$body .= __( 'Time:', 'kreativ-report-broken-link' ) . ' ' . current_time( 'mysql' ) . "\n\n";
 			$body .= __( 'View reports:', 'kreativ-report-broken-link' ) . ' ' . admin_url( 'admin.php?page=krbl_reports' );
 
@@ -856,39 +930,53 @@ final class KRBL_Plugin {
 			$status = '';
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$link_type = isset( $_GET['link_type'] ) ? sanitize_key( wp_unslash( $_GET['link_type'] ) ) : '';
+		if ( $link_type && ! in_array( $link_type, array( 'internal', 'external', 'unknown' ), true ) ) {
+			$link_type = '';
+		}
+
 		$ver       = $this->get_cache_version();
-		$cache_key = 'export_' . $ver . '_' . md5( (string) $status );
+		$cache_key = 'export_' . $ver . '_' . md5( (string) $status . '|' . (string) $link_type );
 
 		$rows = wp_cache_get( $cache_key, $this->cache_group );
 
 		if ( false === $rows ) {
-
-			if ( $status ) {
-
-				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table name is safe (sanitized via get_table_name()).
-				$sql = $wpdb->prepare("SELECT id, post_id, url, user_ip, status, created_at FROM " . $table . " WHERE status = %s ORDER BY created_at DESC", $status);
-
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
-				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above; Plugin Check can't always infer this.
-				$rows = $wpdb->get_results( $sql, ARRAY_A );
-
+			if ( $status && $link_type ) {
+				$sql = $wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
+					"SELECT id, post_id, url, target_url, link_type, user_ip, status, created_at FROM {$table} WHERE status = %s AND link_type = %s ORDER BY created_at DESC",
+					$status,
+					$link_type
+				);
+			} elseif ( $status ) {
+				$sql = $wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
+					"SELECT id, post_id, url, target_url, link_type, user_ip, status, created_at FROM {$table} WHERE status = %s ORDER BY created_at DESC",
+					$status
+				);
+			} elseif ( $link_type ) {
+				$sql = $wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
+					"SELECT id, post_id, url, target_url, link_type, user_ip, status, created_at FROM {$table} WHERE link_type = %s ORDER BY created_at DESC",
+					$link_type
+				);
 			} else {
-
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
-				$sql = "SELECT id, post_id, url, user_ip, status, created_at
+				$sql = "SELECT id, post_id, url, target_url, link_type, user_ip, status, created_at
 					FROM {$table}
 					ORDER BY created_at DESC";
-
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
-				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- No user input; Plugin Check requires explicit ignore for $sql.
-				$rows = $wpdb->get_results( $sql, ARRAY_A );
 			}
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above or has no user input.
+			$rows = $wpdb->get_results( $sql, ARRAY_A );
 
 			wp_cache_set( $cache_key, $rows, $this->cache_group, 60 );
 		}
 
 		$lines   = array();
-		$lines[] = '"ID","Post ID","URL","IP","Status","Date"';
+		$lines[] = '"ID","Post ID","Page URL","Reported URL","Link Type","IP","Status","Date"';
 
 		if ( $rows ) {
 			foreach ( $rows as $row ) {
@@ -898,6 +986,8 @@ final class KRBL_Plugin {
 						$this->csv_field( (int) $row['id'] ),
 						$this->csv_field( (int) $row['post_id'] ),
 						$this->csv_field( $row['url'] ),
+						$this->csv_field( $row['target_url'] ),
+						$this->csv_field( $row['link_type'] ),
 						$this->csv_field( $row['user_ip'] ),
 						$this->csv_field( $row['status'] ),
 						$this->csv_field( $row['created_at'] ),
@@ -1056,6 +1146,15 @@ final class KRBL_Plugin {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading filter parameter.
 		$status = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+		if ( $status && ! in_array( $status, array( 'new', 'resolved', 'ignored' ), true ) ) {
+			$status = '';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading filter parameter.
+		$link_type = isset( $_GET['link_type'] ) ? sanitize_key( wp_unslash( $_GET['link_type'] ) ) : '';
+		if ( $link_type && ! in_array( $link_type, array( 'internal', 'external', 'unknown' ), true ) ) {
+			$link_type = '';
+		}
 
 		$per_page = 100;
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading page number.
@@ -1064,18 +1163,37 @@ final class KRBL_Plugin {
 
 		$ver = $this->get_cache_version();
 
-		$total_key   = 'total_' . $ver . '_' . ( $status ? $status : 'all' );
+		$total_key   = 'total_' . $ver . '_' . md5( ( $status ? $status : 'all' ) . '|' . ( $link_type ? $link_type : 'all' ) );
 		$total_items = wp_cache_get( $total_key, $this->cache_group );
 
 		if ( false === $total_items ) {
 
-			if ( $status ) {
+			if ( $status && $link_type ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
+				$total_items = (int) $wpdb->get_var(
+					$wpdb->prepare(
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
+						"SELECT COUNT(*) FROM {$table} WHERE status = %s AND link_type = %s",
+						$status,
+						$link_type
+					)
+				);
+			} elseif ( $status ) {
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
 				$total_items = (int) $wpdb->get_var(
 					$wpdb->prepare(
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
 						"SELECT COUNT(*) FROM {$table} WHERE status = %s",
 						$status
+					)
+				);
+			} elseif ( $link_type ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
+				$total_items = (int) $wpdb->get_var(
+					$wpdb->prepare(
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
+						"SELECT COUNT(*) FROM {$table} WHERE link_type = %s",
+						$link_type
 					)
 				);
 			} else {
@@ -1091,12 +1209,29 @@ final class KRBL_Plugin {
 
 		$total_pages = max( 1, (int) ceil( (int) $total_items / $per_page ) );
 
-		$rows_key = 'rows_' . $ver . '_' . md5( (string) $status . '|' . (int) $per_page . '|' . (int) $offset );
+		$rows_key = 'rows_' . $ver . '_' . md5( (string) $status . '|' . (string) $link_type . '|' . (int) $per_page . '|' . (int) $offset );
 		$rows     = wp_cache_get( $rows_key, $this->cache_group );
 
 		if ( false === $rows ) {
 
-			if ( $status ) {
+			if ( $status && $link_type ) {
+				$sql = $wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
+					"SELECT * FROM {$table}
+					 WHERE status = %s AND link_type = %s
+					 ORDER BY created_at DESC
+					 LIMIT %d OFFSET %d",
+					$status,
+					$link_type,
+					$per_page,
+					$offset
+				);
+
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above; Plugin Check can't always infer this.
+				$rows = $wpdb->get_results( $sql );
+
+			} elseif ( $status ) {
 
 				$sql = $wpdb->prepare(
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
@@ -1105,6 +1240,23 @@ final class KRBL_Plugin {
 					 ORDER BY created_at DESC
 					 LIMIT %d OFFSET %d",
 					$status,
+					$per_page,
+					$offset
+				);
+
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above; Plugin Check can't always infer this.
+				$rows = $wpdb->get_results( $sql );
+
+			} elseif ( $link_type ) {
+
+				$sql = $wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
+					"SELECT * FROM {$table}
+					 WHERE link_type = %s
+					 ORDER BY created_at DESC
+					 LIMIT %d OFFSET %d",
+					$link_type,
 					$per_page,
 					$offset
 				);
@@ -1142,6 +1294,9 @@ final class KRBL_Plugin {
 		if ( $status ) {
 			$query_args['status'] = $status;
 		}
+		if ( $link_type ) {
+			$query_args['link_type'] = $link_type;
+		}
 
 		$base_url_with_args  = add_query_arg( $query_args, $base_url );
 		$base_url_pagination = remove_query_arg( 'paged', $base_url_with_args );
@@ -1174,10 +1329,15 @@ final class KRBL_Plugin {
 		echo '<div class="krbl-actions-bar">';
 		echo '<div>';
 
-		echo '<a class="button' . ( '' === $status ? ' button-primary' : '' ) . '" href="' . esc_url( $base_url ) . '">' . esc_html__( 'All', 'kreativ-report-broken-link' ) . '</a> ';
-		echo '<a class="button' . ( 'new' === $status ? ' button-primary' : '' ) . '" href="' . esc_url( add_query_arg( 'status', 'new', $base_url ) ) . '">' . esc_html__( 'New', 'kreativ-report-broken-link' ) . '</a> ';
-		echo '<a class="button' . ( 'resolved' === $status ? ' button-primary' : '' ) . '" href="' . esc_url( add_query_arg( 'status', 'resolved', $base_url ) ) . '">' . esc_html__( 'Resolved', 'kreativ-report-broken-link' ) . '</a> ';
-		echo '<a class="button' . ( 'ignored' === $status ? ' button-primary' : '' ) . '" href="' . esc_url( add_query_arg( 'status', 'ignored', $base_url ) ) . '">' . esc_html__( 'Ignored', 'kreativ-report-broken-link' ) . '</a>';
+		echo '<a class="button' . ( '' === $status ? ' button-primary' : '' ) . '" href="' . esc_url( remove_query_arg( 'status', $base_url_with_args ) ) . '">' . esc_html__( 'All', 'kreativ-report-broken-link' ) . '</a> ';
+		echo '<a class="button' . ( 'new' === $status ? ' button-primary' : '' ) . '" href="' . esc_url( add_query_arg( 'status', 'new', $base_url_with_args ) ) . '">' . esc_html__( 'New', 'kreativ-report-broken-link' ) . '</a> ';
+		echo '<a class="button' . ( 'resolved' === $status ? ' button-primary' : '' ) . '" href="' . esc_url( add_query_arg( 'status', 'resolved', $base_url_with_args ) ) . '">' . esc_html__( 'Resolved', 'kreativ-report-broken-link' ) . '</a> ';
+		echo '<a class="button' . ( 'ignored' === $status ? ' button-primary' : '' ) . '" href="' . esc_url( add_query_arg( 'status', 'ignored', $base_url_with_args ) ) . '">' . esc_html__( 'Ignored', 'kreativ-report-broken-link' ) . '</a>';
+		echo ' <span class="krbl-filter-separator" aria-hidden="true">|</span> ';
+		echo '<a class="button' . ( '' === $link_type ? ' button-primary' : '' ) . '" href="' . esc_url( remove_query_arg( 'link_type', $base_url_with_args ) ) . '">' . esc_html__( 'Any Type', 'kreativ-report-broken-link' ) . '</a> ';
+		echo '<a class="button' . ( 'internal' === $link_type ? ' button-primary' : '' ) . '" href="' . esc_url( add_query_arg( 'link_type', 'internal', $base_url_with_args ) ) . '">' . esc_html__( 'Internal', 'kreativ-report-broken-link' ) . '</a> ';
+		echo '<a class="button' . ( 'external' === $link_type ? ' button-primary' : '' ) . '" href="' . esc_url( add_query_arg( 'link_type', 'external', $base_url_with_args ) ) . '">' . esc_html__( 'External', 'kreativ-report-broken-link' ) . '</a> ';
+		echo '<a class="button' . ( 'unknown' === $link_type ? ' button-primary' : '' ) . '" href="' . esc_url( add_query_arg( 'link_type', 'unknown', $base_url_with_args ) ) . '">' . esc_html__( 'Unknown', 'kreativ-report-broken-link' ) . '</a>';
 
 		echo '</div>';
 
@@ -1233,7 +1393,9 @@ final class KRBL_Plugin {
 		echo '<th>' . esc_html__( 'ID', 'kreativ-report-broken-link' ) . '</th>';
 		echo '<th>' . esc_html__( 'Time', 'kreativ-report-broken-link' ) . '</th>';
 		echo '<th>' . esc_html__( 'Post', 'kreativ-report-broken-link' ) . '</th>';
-		echo '<th>' . esc_html__( 'URL', 'kreativ-report-broken-link' ) . '</th>';
+		echo '<th>' . esc_html__( 'Page URL', 'kreativ-report-broken-link' ) . '</th>';
+		echo '<th>' . esc_html__( 'Reported URL', 'kreativ-report-broken-link' ) . '</th>';
+		echo '<th>' . esc_html__( 'Type', 'kreativ-report-broken-link' ) . '</th>';
 		echo '<th>' . esc_html__( 'IP', 'kreativ-report-broken-link' ) . '</th>';
 		echo '<th>' . esc_html__( 'Status', 'kreativ-report-broken-link' ) . '</th>';
 		echo '<th>' . esc_html__( 'Actions', 'kreativ-report-broken-link' ) . '</th>';
@@ -1254,6 +1416,9 @@ final class KRBL_Plugin {
 
 			if ( $status ) {
 				$row_url_base = add_query_arg( 'status', $status, $row_url_base );
+			}
+			if ( $link_type ) {
+				$row_url_base = add_query_arg( 'link_type', $link_type, $row_url_base );
 			}
 			if ( $paged > 1 ) {
 				$row_url_base = add_query_arg( 'paged', $paged, $row_url_base );
@@ -1280,6 +1445,14 @@ final class KRBL_Plugin {
 			echo '<td>' . esc_html( $r->created_at ) . '</td>';
 			echo '<td>' . wp_kses_post( $post_link ) . '</td>';
 			echo '<td><a href="' . esc_url( $r->url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $r->url ) . '</a></td>';
+			echo '<td>';
+			if ( ! empty( $r->target_url ) ) {
+				echo '<a href="' . esc_url( $r->target_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $r->target_url ) . '</a>';
+			} else {
+				echo esc_html__( 'Not provided', 'kreativ-report-broken-link' );
+			}
+			echo '</td>';
+			echo '<td>' . esc_html( ! empty( $r->link_type ) ? $r->link_type : 'unknown' ) . '</td>';
 			echo '<td>' . esc_html( $r->user_ip ) . '</td>';
 			echo '<td>' . esc_html( $r->status ) . '</td>';
 			echo '<td>' . wp_kses_post( $actions ) . '</td>';
@@ -1296,12 +1469,16 @@ final class KRBL_Plugin {
 			btn.addEventListener("click", function(){
 				var nonce = document.getElementById("krbl-export-nonce").value || "";
 				var status = ' . wp_json_encode( (string) $status ) . ';
+				var linkType = ' . wp_json_encode( (string) $link_type ) . ';
 				var url = (window.ajaxurl || ' . wp_json_encode( admin_url( 'admin-ajax.php' ) ) . ');
 				url += (url.indexOf("?") === -1 ? "?" : "&");
 				url += "action=krbl_export_csv";
 				url += "&nonce=" + encodeURIComponent(nonce);
 				if(status){
 					url += "&status=" + encodeURIComponent(status);
+				}
+				if(linkType){
+					url += "&link_type=" + encodeURIComponent(linkType);
 				}
 				window.location.href = url;
 			});
