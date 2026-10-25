@@ -1,6 +1,6 @@
 document.addEventListener("click", function (e) {
   var btn = e.target.closest(".krbl-report-btn");
-  if (!btn) return;
+  if (!btn || btn.disabled || typeof KRBL === "undefined") return;
 
   e.preventDefault();
 
@@ -8,34 +8,38 @@ document.addEventListener("click", function (e) {
   var out = container ? container.querySelector(".krbl-output") : null;
   var targetInput = container ? container.querySelector(".krbl-target-url") : null;
   var targetUrl = targetInput ? targetInput.value.trim() : "";
+  var i18n = KRBL.i18n || {};
 
-  if (targetUrl && targetInput && !targetInput.checkValidity()) {
-    if (out) {
-      out.innerHTML =
-        "<div class='krbl-msg error'>⚠️ " +
-        (KRBL?.i18n?.badUrl || "Enter a valid URL or leave the field empty.") +
-        "</div>";
+  function showMessage(type, message) {
+    if (!out) return;
+    var node = document.createElement("div");
+    node.className = "krbl-msg " + type;
+    node.textContent = message;
+    out.replaceChildren(node);
+  }
+
+  if (targetUrl) {
+    try {
+      var parsed = new URL(targetUrl);
+      if (
+        !targetInput.checkValidity() || targetUrl.length > 2048 ||
+        ["http:", "https:"].indexOf(parsed.protocol) === -1 ||
+        !parsed.hostname || parsed.username || parsed.password
+      ) throw new Error("Invalid URL");
+    } catch (error) {
+      showMessage("error", i18n.badUrl || "Enter a complete HTTP or HTTPS URL, or leave the field empty.");
+      targetInput.focus();
+      return;
     }
-    targetInput.focus();
-    return;
   }
 
   btn.disabled = true;
   btn.classList.add("is-loading");
+  if (targetInput) targetInput.disabled = true;
 
   var txt = btn.querySelector(".krbl-text");
   var originalText = txt ? txt.textContent : "";
-  if (txt) {
-    txt.textContent = "⏳ " + (KRBL?.i18n?.sending || "Sending...");
-  }
-
-  function resetButton() {
-    btn.disabled = false;
-    btn.classList.remove("is-loading");
-    if (txt) {
-      txt.textContent = originalText;
-    }
-  }
+  if (txt) txt.textContent = i18n.sending || "Sending...";
 
   var fd = new FormData();
   fd.append("action", "krbl_submit_report");
@@ -44,43 +48,26 @@ document.addEventListener("click", function (e) {
   fd.append("target_url", targetUrl);
 
   fetch(KRBL.ajaxUrl, { method: "POST", credentials: "same-origin", body: fd })
-    .then(function (r) {
-      return r.json();
-    })
+    .then(function (r) { return r.json(); })
     .then(function (res) {
-      if (!out) return;
-
       if (res && res.success) {
-        out.innerHTML =
-          "<div class='krbl-msg success'>✅ " +
-          (KRBL?.i18n?.thanks || "Thanks, your report has been sent!") +
-          "</div>";
-        btn.remove();
-        return;
+        showMessage("success", i18n.thanks || "Thanks, your report has been sent!");
+        if (targetInput) targetInput.value = "";
+      } else if (res && res.data && res.data.code === "duplicate") {
+        showMessage("notice", i18n.dup || "Already reported recently. Thank you!");
+      } else {
+        var message = res && res.data;
+        if (message && typeof message === "object") message = message.message;
+        showMessage("error", typeof message === "string" ? message : (i18n.fail || "Failed to send. Try again later."));
       }
-
-      if (res && res.data && res.data.code === "duplicate") {
-        out.innerHTML =
-          "<div class='krbl-msg notice'>ℹ️ " +
-          (KRBL?.i18n?.dup || "Already reported recently. Thank you!") +
-          "</div>";
-        btn.remove();
-        return;
-      }
-
-      out.innerHTML =
-        "<div class='krbl-msg error'>⚠️ " +
-        (KRBL?.i18n?.fail || "Failed to send. Try again later.") +
-        "</div>";
-      resetButton();
     })
     .catch(function () {
-      if (!out) return;
-
-      out.innerHTML =
-        "<div class='krbl-msg error'>⚠️ " +
-        (KRBL?.i18n?.error || "Error. Please try again.") +
-        "</div>";
-      resetButton();
+      showMessage("error", i18n.error || "Error. Please try again.");
+    })
+    .finally(function () {
+      btn.disabled = false;
+      btn.classList.remove("is-loading");
+      if (txt) txt.textContent = originalText;
+      if (targetInput) targetInput.disabled = false;
     });
 });

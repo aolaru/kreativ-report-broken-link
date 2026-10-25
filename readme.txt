@@ -20,7 +20,9 @@ Kreativ Report Broken Link adds a simple "Report broken links on this page" butt
 * Admin dashboard list with status actions (Resolve / Ignore / Reopen)
 * Filters + pagination
 * CSV export (AJAX, no page reload)
-* Duplicate protection (1 report per post per IP per 24h)
+* Duplicate protection (1 report per page and target URL per visitor IP per 24h)
+* Submission limits across all pages and target URLs
+* Optional IP masking and scheduled report retention
 * Optional email notifications
 
 == Installation ==
@@ -29,6 +31,12 @@ Kreativ Report Broken Link adds a simple "Report broken links on this page" butt
 3. Go to **Broken Links** and open the **Settings** tab to choose email + post types.
 
 == Frequently Asked Questions ==
+
+= How are repeated reports limited? =
+The same visitor IP can report a specific target on a page once per 24 hours. Across all pages and targets, each IP can submit up to five reports per ten minutes and twenty per 24 hours. IP masking does not merge different addresses for duplicate detection; a site-salted hash is used instead.
+
+= When are old reports deleted? =
+Set a retention period in the Settings tab to enable daily cleanup through WP-Cron. WordPress runs scheduled jobs when the site receives traffic, so cleanup may be delayed on quiet sites or when WP-Cron is disabled. Set retention to 0 to keep reports indefinitely. Masking applies to newly submitted reports, not existing rows.
 
 = Does this plugin slow down my site? =
 No. Unlike other broken link tools, this plugin does not crawl your site. It only loads a tiny script and a button, making it one of the most lightweight maintenance tools available.
@@ -76,6 +84,11 @@ Renames the admin menu to Broken Links and moves settings into a tab on the same
 * Added internal, external, and unknown link classification.
 * Added link type filters to the reports dashboard and CSV export.
 * Added schema migration support for the new report fields.
+* Verified schema upgrades before marking them complete and preserved notification settings during upgrades.
+* Added per-IP submission limits and kept duplicate blocking within its original 24-hour window.
+* Scheduled daily retention cleanup and removed the scheduled job on deactivation or uninstall.
+* Validated complete HTTP/HTTPS target URLs and allowed visitors to report additional links without reloading.
+* Fixed moderation error notices, preserved link type filters, and made CSV downloads work with empty results.
 
 = 1.4.0 =
 * Renamed the WordPress admin menu label to Broken Links.

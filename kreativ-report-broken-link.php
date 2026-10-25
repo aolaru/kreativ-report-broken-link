@@ -31,7 +31,8 @@ final class KRBL_Plugin {
 	const OPTION_ANONYMIZE_IP = 'krbl_anonymize_ip';
 	const OPTION_LAST_CLEANUP = 'krbl_last_cleanup';
 	const OPTION_DB_VERSION   = 'krbl_db_version';
-	const DB_VERSION          = '1.5.0';
+	const DB_VERSION          = '1.5.0.1';
+	const CLEANUP_HOOK        = 'krbl_cleanup_reports';
 
 	/**
 	 * Cache group.
@@ -47,13 +48,22 @@ final class KRBL_Plugin {
 	 */
 	private $table_name = '';
 
+	/** @var bool|null Schema availability for this request. */
+	private $schema_ready = null;
+
 	public function __construct() {
 
 		$this->table_name = $this->get_table_name();
 
 		register_activation_hook( __FILE__, array( $this, 'activate' ) );
+		register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
 
 		add_action( 'init', array( $this, 'maybe_upgrade_schema' ) );
+		add_action( 'init', array( $this, 'sync_cleanup_schedule' ), 11 );
+		add_action( 'update_option_' . self::OPTION_RETENTION, array( $this, 'sync_cleanup_schedule' ) );
+		add_action( 'add_option_' . self::OPTION_RETENTION, array( $this, 'sync_cleanup_schedule' ) );
+		add_action( self::CLEANUP_HOOK, array( $this, 'maybe_cleanup_old_reports' ) );
+		add_action( 'admin_notices', array( $this, 'schema_notice' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 
 		// Handle row actions early (before output) to ensure redirects work reliably.
@@ -218,6 +228,21 @@ final class KRBL_Plugin {
 	 * @return void
 	 */
 	public function activate() {
+		add_option( self::OPTION_NOTIFY_EMAIL, get_option( 'admin_email' ) );
+		add_option( self::OPTION_POST_TYPES, array( 'post' ) );
+		add_option( self::OPTION_RETENTION, 0 );
+		add_option( self::OPTION_ANONYMIZE_IP, 0 );
+
+		$this->maybe_upgrade_schema();
+		$this->sync_cleanup_schedule();
+	}
+
+	/**
+	 * Create or upgrade the report table, then verify the required schema.
+	 *
+	 * @return bool
+	 */
+	private function upgrade_schema() {
 		global $wpdb;
 
 		$table           = $this->table_name;
@@ -239,44 +264,61 @@ final class KRBL_Plugin {
 			KEY status (status),
 			KEY link_type (link_type),
 			KEY ip_hash (ip_hash),
+			KEY reporter_created (ip_hash,created_at),
 			KEY post_id (post_id)
 		) $charset_collate;";
 
 		dbDelta( $sql );
 
-		if ( ! get_option( self::OPTION_NOTIFY_EMAIL ) ) {
-			update_option( self::OPTION_NOTIFY_EMAIL, get_option( 'admin_email' ) );
+		// dbDelta's return value describes attempted changes, not their success.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Schema inspection is not cached.
+		$columns = $wpdb->get_col( "SHOW COLUMNS FROM {$table}" );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Schema inspection is not cached.
+		$indexes = $wpdb->get_col( "SHOW INDEX FROM {$table}", 2 );
+		$required_columns = array( 'id', 'post_id', 'url', 'target_url', 'link_type', 'user_ip', 'ip_hash', 'status', 'created_at' );
+		$required_indexes = array( 'PRIMARY', 'status', 'link_type', 'ip_hash', 'reporter_created', 'post_id' );
+		if ( array_diff( $required_columns, $columns ) || array_diff( $required_indexes, $indexes ) ) {
+			return false;
 		}
-
-		if ( ! get_option( self::OPTION_POST_TYPES ) ) {
-			update_option( self::OPTION_POST_TYPES, array( 'post' ) );
-		}
-
-		if ( false === get_option( self::OPTION_RETENTION, false ) ) {
-			update_option( self::OPTION_RETENTION, 0 );
-		}
-
-		if ( false === get_option( self::OPTION_ANONYMIZE_IP, false ) ) {
-			update_option( self::OPTION_ANONYMIZE_IP, 0 );
-		}
-
-		// Ensure cache version exists.
-		$this->get_cache_version();
 
 		update_option( self::OPTION_DB_VERSION, self::DB_VERSION, false );
+		$this->bust_cache();
+		return true;
 	}
 
 	/**
 	 * Upgrade custom table schema when plugin files are updated.
 	 *
-	 * @return void
+	 * @return bool
 	 */
 	public function maybe_upgrade_schema() {
-		if ( get_option( self::OPTION_DB_VERSION ) === self::DB_VERSION ) {
+		if ( null === $this->schema_ready ) {
+			$this->schema_ready = get_option( self::OPTION_DB_VERSION ) === self::DB_VERSION || $this->upgrade_schema();
+		}
+		return $this->schema_ready;
+	}
+
+	/** Show a recoverable migration failure without exposing database details. */
+	public function schema_notice() {
+		if ( false === $this->schema_ready && current_user_can( 'manage_options' ) ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Broken Links could not update its database table. Check database permissions and reload to retry.', 'kreativ-report-broken-link' ) . '</p></div>';
+		}
+	}
+
+	/** Keep one daily retention event while retention is enabled. */
+	public function sync_cleanup_schedule() {
+		if ( (int) get_option( self::OPTION_RETENTION, 0 ) <= 0 ) {
+			wp_clear_scheduled_hook( self::CLEANUP_HOOK );
 			return;
 		}
+		if ( ! wp_next_scheduled( self::CLEANUP_HOOK ) ) {
+			wp_schedule_event( time() + MINUTE_IN_SECONDS, 'daily', self::CLEANUP_HOOK );
+		}
+	}
 
-		$this->activate();
+	/** Remove the scheduled job when the plugin is deactivated. */
+	public function deactivate() {
+		wp_clear_scheduled_hook( self::CLEANUP_HOOK );
 	}
 
 	/**
@@ -508,7 +550,7 @@ final class KRBL_Plugin {
 					'fail'    => __( 'Failed to send. Try again later.', 'kreativ-report-broken-link' ),
 					'error'   => __( 'Error. Please try again.', 'kreativ-report-broken-link' ),
 					'dup'     => __( 'Already reported recently. Thank you!', 'kreativ-report-broken-link' ),
-					'badUrl'  => __( 'Enter a valid URL or leave the field empty.', 'kreativ-report-broken-link' ),
+					'badUrl'  => __( 'Enter a complete HTTP or HTTPS URL, or leave the field empty.', 'kreativ-report-broken-link' ),
 				),
 			)
 		);
@@ -625,7 +667,7 @@ final class KRBL_Plugin {
 	 *
 	 * @return void
 	 */
-	private function maybe_cleanup_old_reports() {
+	public function maybe_cleanup_old_reports() {
 		$days = (int) get_option( self::OPTION_RETENTION, 0 );
 		if ( $days <= 0 ) {
 			return;
@@ -635,11 +677,14 @@ final class KRBL_Plugin {
 		if ( $last_cleanup > 0 && ( time() - $last_cleanup ) < DAY_IN_SECONDS ) {
 			return;
 		}
+		if ( ! $this->maybe_upgrade_schema() ) {
+			return;
+		}
 
 		global $wpdb;
 		$table = $this->table_name;
 
-		$threshold = date_i18n( 'Y-m-d H:i:s', current_time( 'timestamp' ) - ( $days * DAY_IN_SECONDS ) );
+		$threshold = wp_date( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ), wp_timezone() );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table cleanup is required.
 		$deleted = $wpdb->query(
@@ -650,6 +695,9 @@ final class KRBL_Plugin {
 			)
 		);
 
+		if ( false === $deleted ) {
+			return;
+		}
 		update_option( self::OPTION_LAST_CLEANUP, time(), false );
 
 		if ( is_int( $deleted ) && $deleted > 0 ) {
@@ -689,6 +737,11 @@ final class KRBL_Plugin {
 		if ( $status ) {
 			$redirect_args['status'] = $status;
 		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading a display filter.
+		$link_type = isset( $_GET['link_type'] ) ? sanitize_key( wp_unslash( $_GET['link_type'] ) ) : '';
+		if ( in_array( $link_type, array( 'internal', 'external', 'unknown' ), true ) ) {
+			$redirect_args['link_type'] = $link_type;
+		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading page number.
 		if ( isset( $_GET['paged'] ) ) {
@@ -718,7 +771,7 @@ final class KRBL_Plugin {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table update is required.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching -- Update query; caching not applicable. Cache is invalidated via bust_cache().
-		$wpdb->update(
+		$updated = $wpdb->update(
 			$table,
 			array( 'status' => $new_status ),
 			array( 'id' => $id ),
@@ -726,9 +779,12 @@ final class KRBL_Plugin {
 			array( '%d' )
 		);
 
-		$this->bust_cache();
-
-		$redirect_args['krbl_msg'] = 'updated';
+		if ( false === $updated ) {
+			$redirect_args['krbl_msg'] = 'update_failed';
+		} else {
+			$this->bust_cache();
+			$redirect_args['krbl_msg'] = 'updated';
+		}
 
 		wp_safe_redirect( add_query_arg( $redirect_args, admin_url( 'admin.php' ) ) );
 		exit;
@@ -778,8 +834,6 @@ final class KRBL_Plugin {
 			wp_send_json_error( __( 'Invalid post ID.', 'kreativ-report-broken-link' ) );
 		}
 
-		$this->maybe_cleanup_old_reports();
-
 		$post = get_post( $post_id );
 		if ( ! $post || 'publish' !== $post->post_status ) {
 			wp_send_json_error( __( 'Invalid post.', 'kreativ-report-broken-link' ) );
@@ -797,13 +851,25 @@ final class KRBL_Plugin {
 
 		$target_url = '';
 		if ( isset( $_POST['target_url'] ) ) {
-			$raw_target_url = is_scalar( $_POST['target_url'] ) ? trim( wp_unslash( $_POST['target_url'] ) ) : '';
-			$target_url     = esc_url_raw( $raw_target_url, array( 'http', 'https' ) );
-			if ( '' === $target_url && '' !== $raw_target_url ) {
+			if ( ! is_string( $_POST['target_url'] ) ) {
 				wp_send_json_error( __( 'Invalid broken link URL.', 'kreativ-report-broken-link' ) );
+			}
+			$raw_target_url = trim( wp_unslash( $_POST['target_url'] ) );
+			if ( '' !== $raw_target_url ) {
+				$parts = wp_parse_url( $raw_target_url );
+				if ( strlen( $raw_target_url ) > 2048 || ! filter_var( $raw_target_url, FILTER_VALIDATE_URL ) ||
+					! is_array( $parts ) || empty( $parts['host'] ) ||
+					! in_array( strtolower( $parts['scheme'] ?? '' ), array( 'http', 'https' ), true ) ||
+					isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
+					wp_send_json_error( __( 'Enter a complete HTTP or HTTPS URL.', 'kreativ-report-broken-link' ) );
+				}
+				$target_url = esc_url_raw( $raw_target_url, array( 'http', 'https' ) );
 			}
 		}
 		$link_type = $this->classify_link_type( $target_url );
+		if ( ! $this->maybe_upgrade_schema() ) {
+			wp_send_json_error( __( 'Reporting is temporarily unavailable. Please try again later.', 'kreativ-report-broken-link' ) );
+		}
 
 		global $wpdb;
 		$table = $this->table_name;
@@ -815,15 +881,9 @@ final class KRBL_Plugin {
 		$stored_ip = $this->maybe_anonymize_ip( $raw_ip );
 		$ip_hash   = $this->get_ip_hash( $raw_ip );
 
-		$cache_key = 'dup_' . md5( (string) $post_id . '|' . (string) $target_url . '|' . (string) $raw_ip );
-
-		$cached = wp_cache_get( $cache_key, $this->cache_group );
-		if ( false !== $cached ) {
-			wp_send_json_error( array( 'code' => 'duplicate' ) );
-		}
-
 		// Prevent duplicates: one report per post/target/IP per 24 hours.
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
+		// Read the time window directly so persistent caches cannot extend the block.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Time-sensitive duplicate protection.
 		$exists = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe (sanitized via get_table_name()).
@@ -837,9 +897,34 @@ final class KRBL_Plugin {
 			)
 		);
 
+		if ( $wpdb->last_error ) {
+			wp_send_json_error( __( 'Failed to save report. Please try again later.', 'kreativ-report-broken-link' ) );
+		}
 		if ( $exists > 0 ) {
-			wp_cache_set( $cache_key, 1, $this->cache_group, DAY_IN_SECONDS );
 			wp_send_json_error( array( 'code' => 'duplicate' ) );
+		}
+
+		// Limits span all pages and target URLs and work without a persistent cache.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Live submission counters.
+		$activity = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT COUNT(*) AS daily_count,
+				 COALESCE(SUM(created_at > DATE_SUB(%s, INTERVAL 10 MINUTE)), 0) AS recent_count
+				 FROM {$table} WHERE ip_hash = %s
+				 AND created_at > DATE_SUB(%s, INTERVAL 24 HOUR)",
+				current_time( 'mysql' ),
+				$ip_hash,
+				current_time( 'mysql' )
+			)
+		);
+		if ( ! $activity || $wpdb->last_error ) {
+			wp_send_json_error( __( 'Failed to save report. Please try again later.', 'kreativ-report-broken-link' ) );
+		}
+		if ( (int) $activity->recent_count >= 5 || (int) $activity->daily_count >= 20 ) {
+			wp_send_json_error( array(
+				'code'    => 'rate_limited',
+				'message' => __( 'Too many reports. Please try again later.', 'kreativ-report-broken-link' ),
+			), 429 );
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table required.
@@ -918,6 +1003,9 @@ final class KRBL_Plugin {
 		$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
 		if ( ! wp_verify_nonce( $nonce, 'krbl_export' ) ) {
 			wp_die( esc_html__( 'Security check failed.', 'kreativ-report-broken-link' ), '', array( 'response' => 403 ) );
+		}
+		if ( ! $this->maybe_upgrade_schema() ) {
+			wp_die( esc_html__( 'Reports are temporarily unavailable while the database update is retried.', 'kreativ-report-broken-link' ), '', array( 'response' => 503 ) );
 		}
 
 		global $wpdb;
@@ -1140,6 +1228,12 @@ final class KRBL_Plugin {
 			echo '</div>';
 			return;
 		}
+		if ( ! $this->maybe_upgrade_schema() ) {
+			echo '<p>' . esc_html__( 'Reports are temporarily unavailable while the database update is retried.', 'kreativ-report-broken-link' ) . '</p>';
+			$this->render_kreativ_footer();
+			echo '</div>';
+			return;
+		}
 
 		global $wpdb;
 		$table = $this->table_name;
@@ -1301,7 +1395,15 @@ final class KRBL_Plugin {
 		$base_url_with_args  = add_query_arg( $query_args, $base_url );
 		$base_url_pagination = remove_query_arg( 'paged', $base_url_with_args );
 
-		$ajax_export_nonce = wp_create_nonce( 'krbl_export' );
+		$export_url = add_query_arg(
+			array(
+				'action'    => 'krbl_export_csv',
+				'nonce'     => wp_create_nonce( 'krbl_export' ),
+				'status'    => $status,
+				'link_type' => $link_type,
+			),
+			admin_url( 'admin-ajax.php' )
+		);
 
 		echo '<h1>' . esc_html__( 'Broken Link Reports', 'kreativ-report-broken-link' ) . '</h1>';
 
@@ -1317,6 +1419,10 @@ final class KRBL_Plugin {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading message param.
 		if ( isset( $_GET['krbl_msg'] ) && 'invalid' === sanitize_key( wp_unslash( $_GET['krbl_msg'] ) ) ) {
 			echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Invalid action.', 'kreativ-report-broken-link' ) . '</p></div>';
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading a display notice.
+		if ( isset( $_GET['krbl_msg'] ) && 'update_failed' === sanitize_key( wp_unslash( $_GET['krbl_msg'] ) ) ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Status could not be updated. Please try again.', 'kreativ-report-broken-link' ) . '</p></div>';
 		}
 
 		echo '<div class="krbl-overview" style="margin:12px 0 16px;padding:10px 12px;background:#f6f7f7;border-left:4px solid #2271b1;font-size:14px">';
@@ -1342,8 +1448,7 @@ final class KRBL_Plugin {
 		echo '</div>';
 
 		echo '<div>';
-		echo '<button id="krbl-export-csv" class="button button-secondary">⬇️ ' . esc_html__( 'Export CSV', 'kreativ-report-broken-link' ) . '</button>';
-		echo '<input type="hidden" id="krbl-export-nonce" value="' . esc_attr( $ajax_export_nonce ) . '">';
+		echo '<a id="krbl-export-csv" class="button button-secondary" href="' . esc_url( $export_url ) . '">' . esc_html__( 'Export CSV', 'kreativ-report-broken-link' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 
@@ -1460,30 +1565,6 @@ final class KRBL_Plugin {
 		}
 
 		echo '</tbody></table>';
-
-		echo '<script>
-		(function(){
-			var btn = document.getElementById("krbl-export-csv");
-			if(!btn) return;
-
-			btn.addEventListener("click", function(){
-				var nonce = document.getElementById("krbl-export-nonce").value || "";
-				var status = ' . wp_json_encode( (string) $status ) . ';
-				var linkType = ' . wp_json_encode( (string) $link_type ) . ';
-				var url = (window.ajaxurl || ' . wp_json_encode( admin_url( 'admin-ajax.php' ) ) . ');
-				url += (url.indexOf("?") === -1 ? "?" : "&");
-				url += "action=krbl_export_csv";
-				url += "&nonce=" + encodeURIComponent(nonce);
-				if(status){
-					url += "&status=" + encodeURIComponent(status);
-				}
-				if(linkType){
-					url += "&link_type=" + encodeURIComponent(linkType);
-				}
-				window.location.href = url;
-			});
-		})();
-		</script>';
 
 		$this->render_kreativ_footer();
 

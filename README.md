@@ -35,3 +35,19 @@ No user accounts or cookies. Only the reporting visitor’s IP is stored (requir
 
 = Can I customize the button? =
 Yes — you can override the CSS in your theme.
+
+## Development Checks
+
+Run frontend regression checks with Node.js 18 or newer:
+
+```sh
+node --test tests/frontend.cjs
+```
+
+Run WordPress integration checks against a disposable installation with an administrator named `testadmin` and the option `krbl_isolated_test_site` set to `yes`:
+
+```sh
+KRBL_TEST_WP_ROOT=/path/to/disposable/wordpress php tests/integration.php
+```
+
+The integration suite replaces the plugin's reports table and modifies plugin settings in that test installation. Never point it at a production database. Keep `tests/` out of installable release packages.
