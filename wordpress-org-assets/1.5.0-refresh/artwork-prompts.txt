@@ -1,0 +1,18 @@
+Built-in image generation was used for the banner and icon. The following prompts are the reproducible creative brief; the PNGs were exported to WordPress.org's required dimensions.
+
+BANNER
+Use case: ads-marketing.
+Asset type: WordPress.org plugin directory banner, intended export sizes 1544 x 500 and 772 x 250.
+Primary request: Create a finished professional banner for the existing WordPress plugin "Kreativ Report Broken Link". Its function is visitor reporting of broken links, not automated scanning.
+Visual direction: preserve the existing brand's vivid pink/coral accent, with a much clearer high-contrast charcoal (#202126) and white treatment. Crisp editorial typography, restrained geometric illustration, exceptionally clean spacing. Flat print-like graphic artwork, subtle fine texture only, no gradient blobs.
+Composition: very wide panoramic banner, aspect ratio 3.088:1. Text and important marks fully inside a generous safe area. Left two thirds for clear typography, right third for one bold simple illustration of two separated pink chain-link shapes with a small report flag. No cards or screenshot UI. Illustration easy to recognize at thumbnail size.
+Text verbatim, exact spelling and nothing else:
+"Kreativ"
+"Report Broken Link"
+"Let visitors flag broken links."
+Typographic hierarchy: small brand line "Kreativ", large bold main product name "Report Broken Link", smaller highly legible subtitle. White typography on charcoal. Plenty of breathing room. No tiny feature list, no version number, no WordPress logo, no additional text, no green checkmark, no watermark. Generate as a finished wide banner, target exactly 1544 by 500 pixels if supported.
+
+ICON
+Use case: logo-brand.
+Asset type: square WordPress plugin icon for "Kreativ Report Broken Link", to be exported at 256x256 and 128x128.
+Create a finished original, extremely readable icon that matches a charcoal-and-hot-pink plugin banner. Background solid near-black charcoal #202126. Main symbol: two chunky separated chain-link segments in vivid coral pink #ff3869, tilted diagonally from lower left to upper right, with a clear gap indicating a broken link. A small simple pink report flag on a white pole at the upper right completes the idea of visitor reporting. Generous safe padding, centered balanced silhouette, clean negative space, no border or enclosing card. Bold flat geometric illustration, crisp edges, very subtle print texture at most. Must remain recognizable at 48x48. No text, no letters, no numbers, no gradients, no tiny detail, no shadow, no green checkmarks, no watermark. Canvas square 1024x1024.

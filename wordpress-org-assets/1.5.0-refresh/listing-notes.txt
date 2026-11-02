@@ -1,0 +1,23 @@
+WordPress.org listing refresh for Kreativ Report Broken Link 1.5.0
+
+Status: published to WordPress.org SVN in revision 3774047.
+
+Copy
+- readme.txt: five tags, corrected Markdown spacing, a shorter introduction, six feature bullets, and five FAQs.
+- The original changelog and stable version are preserved.
+
+Artwork (built-in image generation)
+- banner-1544x500.png and banner-772x250.png
+- icon-256x256.png and icon-128x128.png
+- artwork-prompts.txt records the exact generation prompts.
+
+Screenshots
+- screenshot-1.png: real frontend report controls in WordPress 6.9 / Twenty Twenty-Five.
+- screenshot-2.png: actual 1.5.0 reports screen with demo data.
+- screenshot-3.png: actual 1.5.0 Settings tab.
+- Captured from an isolated local WordPress installation. No production data was used.
+
+Publication targets
+- Images belong in the SVN repository's top-level assets directory.
+- Listing text belongs in readme.txt. The active stable-tag readme must be considered when publishing copy changes.
+- No PHP or JavaScript behavior was changed for this refresh.

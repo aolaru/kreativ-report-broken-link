@@ -1,40 +1,24 @@
-# kreativ-report-broken-link
-A simple, one-click way for visitors to report broken links directly from your posts.
+# Kreativ Report Broken Link
 
-Kreativ Report Broken Link lets your readers report broken links with one click.
-Each report is automatically saved in your dashboard and emailed to you.
+Let visitors flag broken links without crawling your site. Review reports in your WordPress dashboard and receive optional email alerts.
 
-**Perfect for:**
-- Maintaining a clean website
-- Improving SEO by finding dead URLs
-- Collecting feedback from readers
-- Monitoring affiliate links and external resources
+## Features
 
-== Features ==
-* Automatic “Report Broken Link” button added to every post
-* One-click AJAX page reporting with an optional broken URL field
-* Optional exact broken URL capture
-* Internal and external link classification
-* Dashboard with sortable reports and status management (New, Resolved, Ignored)
-* Email notifications to admin or a custom email address
-* Lightweight and GDPR-friendly (no cookies, minimal data)
-* Pagination for easier management of large numbers of reports
+* Report a page in one click, or include the exact broken URL.
+* Filter internal and external link reports.
+* Resolve, ignore, or reopen reports.
+* Export reports to CSV.
+* Choose supported post types and email notifications.
+* Control IP masking and automatic report retention.
 
-== Installation ==
-1. Upload the plugin ZIP via *Plugins → Add New → Upload*.
-2. Activate the plugin.
-3. Go to *Broken Links* and open the *Settings* tab to configure your notification email.
+## Installation
 
-== Frequently Asked Questions ==
+1. Install and activate the plugin.
+2. Open **Broken Links > Settings** to choose post types and notifications.
 
-= Does it slow down my site? =
-No. The plugin loads a tiny inline JavaScript **only on single posts**, and only when needed.
+The report button appears at the end of content on enabled posts, pages, and public custom post types. The plugin relies on visitor reports and does not automatically scan links.
 
-= Does it collect personal data? =
-No user accounts or cookies. Only the reporting visitor’s IP is stored (required for anti-spam), and you can delete reports anytime.
-
-= Can I customize the button? =
-Yes — you can override the CSS in your theme.
+Reports store the page URL, optional broken URL, timestamp, visitor IP, and a site-salted IP hash for duplicate protection. IP masking applies to new reports. Retention cleanup uses WP-Cron; 0 days keeps reports indefinitely.
 
 ## Development Checks
 

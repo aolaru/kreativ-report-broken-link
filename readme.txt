@@ -1,6 +1,6 @@
 === Kreativ Report Broken Link ===
 Contributors: andreio
-Tags: broken link, dead link, report link, link checker, maintenance, site quality
+Tags: broken link, dead link, report link, internal links, maintenance
 Requires at least: 5.8
 Tested up to: 6.9
 Requires PHP: 7.4
@@ -8,68 +8,53 @@ Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Let visitors report broken links on a page with one click — see reports in WP Admin and optionally get email notifications.
+Let visitors report broken links. Manage reports, filter internal and external URLs, and get optional email alerts.
 
 == Description ==
-Kreativ Report Broken Link adds a simple "Report broken links on this page" button to your selected post types. Visitors can report the current page with one click, or optionally paste the exact broken URL they found. Reports are saved in your dashboard so you can fix broken URLs faster. The report button is added automatically — no shortcodes or configuration required.
 
-**Key features**
-* One-click page reporting with an optional broken URL field
-* Optional exact broken URL capture
-* Internal / external link classification
-* Admin dashboard list with status actions (Resolve / Ignore / Reopen)
-* Filters + pagination
-* CSV export (AJAX, no page reload)
-* Duplicate protection (1 report per page and target URL per visitor IP per 24h)
-* Submission limits across all pages and target URLs
-* Optional IP masking and scheduled report retention
-* Optional email notifications
+Let visitors flag broken links without crawling your site. Review reports in your WordPress dashboard and receive optional email alerts.
+
+= Features =
+
+* Report a page in one click, or include the exact broken URL.
+* Filter internal and external link reports.
+* Resolve, ignore, or reopen reports.
+* Export reports to CSV.
+* Choose supported post types and email notifications.
+* Control IP masking and automatic report retention.
 
 == Installation ==
-1. Upload the plugin folder to '/wp-content/plugins/' or install via WordPress.
-2. Activate the plugin.
-3. Go to **Broken Links** and open the **Settings** tab to choose email + post types.
+
+1. Install and activate the plugin.
+2. Open **Broken Links > Settings** to choose post types and notifications.
 
 == Frequently Asked Questions ==
 
-= How are repeated reports limited? =
-The same visitor IP can report a specific target on a page once per 24 hours. Across all pages and targets, each IP can submit up to five reports per ten minutes and twenty per 24 hours. IP masking does not merge different addresses for duplicate detection; a site-salted hash is used instead.
+= Does it automatically scan my site? =
 
-= When are old reports deleted? =
-Set a retention period in the Settings tab to enable daily cleanup through WP-Cron. WordPress runs scheduled jobs when the site receives traffic, so cleanup may be delayed on quiet sites or when WP-Cron is disabled. Set retention to 0 to keep reports indefinitely. Masking applies to newly submitted reports, not existing rows.
+No. Visitors submit reports; the plugin does not crawl or automatically check links.
 
-= Does this plugin slow down my site? =
-No. Unlike other broken link tools, this plugin does not crawl your site. It only loads a tiny script and a button, making it one of the most lightweight maintenance tools available.
+= Where does the report button appear? =
 
-= Can I customize the button style? =
-Yes! The button uses the '.krbl-report-btn' class. You can easily override the colors and fonts in your theme's CSS or the Customizer.
+At the end of content on enabled posts, pages, and public custom post types. Choose these in the Settings tab.
 
-= Where are the reports saved? =
-Reports are saved in a custom table in your WordPress database and are accessible via the "Broken Links" menu in your admin dashboard.
+= What visitor data is stored? =
 
-= Does this plugin use a shortcode? =
-No. The “Report Broken Link” button is automatically added to supported post types, so no shortcode or manual placement is required.
+Each report stores the page URL, optional broken URL, submission time, visitor IP, and a site-salted IP hash for duplicate protection. Optional IP masking applies to new reports.
 
-= Can I choose where the button appears? =
-The button is automatically displayed on enabled post types. Additional placement options may be considered in future versions.
+= Can I automatically delete old reports? =
 
-= Which post types are supported? =
-Posts and pages are supported. You can enable or disable them from the plugin settings.
+Yes. Set a retention period in days; 0 keeps reports indefinitely. Daily cleanup uses WP-Cron and may be delayed on sites without regular traffic or scheduled cron execution.
 
-= Does this plugin automatically scan for broken links? =
-No. This plugin allows visitors to report broken links they encounter. It does not perform automatic site-wide link scanning.
+= How are repeated submissions limited? =
 
-= Will visitors see admin-only data? =
-No. Visitors can only submit reports. All management actions are available only in the WordPress admin dashboard.
-
-= Is the plugin open source? =
-Yes. The plugin is open source and maintained on GitHub:
-https://github.com/aolaru/kreativ-report-broken-link
+Each visitor IP can report the same target on a page once per 24 hours, with up to five reports per ten minutes and twenty per day across all pages.
 
 == Screenshots ==
-1. Frontend "Report broken links on this page" button with confirmation message.
-2. Reports dashboard with resolve and ignore actions (All / New / Resolved / Ignored).
-3. Settings screen (email notifications + enabled post types).
+
+1. Report a page or submit the exact broken link URL.
+2. Review reports, filter internal and external links, and update their status.
+3. Configure notifications, post types, IP masking, and report retention.
 
 == Upgrade Notice ==
 = 1.5.0 =
