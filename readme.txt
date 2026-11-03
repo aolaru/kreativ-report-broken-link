@@ -4,7 +4,7 @@ Tags: broken link, dead link, report link, internal links, maintenance
 Requires at least: 5.8
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,7 +16,7 @@ Let visitors flag broken links without crawling your site. Review reports in you
 
 = Features =
 
-* Report a page in one click, or include the exact broken URL.
+* Report a page in one click, with an optional setting to include the exact broken URL.
 * Filter internal and external link reports.
 * Resolve, ignore, or reopen reports.
 * Export reports to CSV.
@@ -27,6 +27,7 @@ Let visitors flag broken links without crawling your site. Review reports in you
 
 1. Install and activate the plugin.
 2. Open **Broken Links > Settings** to choose post types and notifications.
+3. Optionally enable the broken link URL field to let visitors expand it when reporting.
 
 == Frequently Asked Questions ==
 
@@ -37,6 +38,10 @@ No. Visitors submit reports; the plugin does not crawl or automatically check li
 = Where does the report button appear? =
 
 At the end of content on enabled posts, pages, and public custom post types. Choose these in the Settings tab.
+
+= Can visitors specify the broken URL? =
+
+Yes. Enable the broken link URL field in Settings to show an expandable optional field. The setting is disabled by default, including on existing installations.
 
 = What visitor data is stored? =
 
@@ -57,6 +62,9 @@ Each visitor IP can report the same target on a page once per 24 hours, with up 
 3. Configure notifications, post types, IP masking, and report retention.
 
 == Upgrade Notice ==
+= 1.5.1 =
+The optional broken URL field is now disabled by default. Enable it in Broken Links settings if visitors should be able to provide a URL.
+
 = 1.5.0 =
 Adds exact broken URL capture, internal/external classification, and report filters by link type.
 
@@ -64,6 +72,10 @@ Adds exact broken URL capture, internal/external classification, and report filt
 Renames the admin menu to Broken Links and moves settings into a tab on the same admin page.
 
 == Changelog ==
+= 1.5.1 =
+* Added a setting to enable the optional broken URL field, disabled by default for new and existing installations.
+* Moved the optional URL field behind an expandable toggle when enabled.
+
 = 1.5.0 =
 * Added an optional broken URL field to frontend reports.
 * Added internal, external, and unknown link classification.

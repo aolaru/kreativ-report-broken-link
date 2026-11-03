@@ -4,7 +4,7 @@ Let visitors flag broken links without crawling your site. Review reports in you
 
 ## Features
 
-* Report a page in one click, or include the exact broken URL.
+* Report a page in one click, with an optional setting to let visitors include the exact broken URL.
 * Filter internal and external link reports.
 * Resolve, ignore, or reopen reports.
 * Export reports to CSV.
@@ -15,6 +15,8 @@ Let visitors flag broken links without crawling your site. Review reports in you
 
 1. Install and activate the plugin.
 2. Open **Broken Links > Settings** to choose post types and notifications.
+
+Enable **Broken Link URL Field** in Settings to offer visitors a collapsed optional URL field. It is disabled by default, including on existing installations.
 
 The report button appears at the end of content on enabled posts, pages, and public custom post types. The plugin relies on visitor reports and does not automatically scan links.
 

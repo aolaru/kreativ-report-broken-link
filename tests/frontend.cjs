@@ -5,14 +5,14 @@ const vm = require('node:vm');
 const { test } = require('node:test');
 const source = fs.readFileSync(path.join(__dirname, '../assets/js/krbl.js'), 'utf8');
 
-function screen(responses, missingOutput = false) {
+function screen(responses, missingOutput = false, missingInput = false) {
   let onClick;
   const requests = [];
   const text = { textContent: 'Report broken links on this page' };
   const output = { children: [], replaceChildren(node) { this.children = [node]; } };
   const input = { value: 'https://example.net/missing', disabled: false, checkValidity: () => true, focus() { this.focused = true; } };
   const loading = new Set();
-  const container = { querySelector: (selector) => selector === '.krbl-output' ? (missingOutput ? null : output) : input };
+  const container = { querySelector: (selector) => selector === '.krbl-output' ? (missingOutput ? null : output) : (missingInput ? null : input) };
   const button = {
     disabled: false, dataset: { post: '42' },
     classList: { add: (name) => loading.add(name), remove: (name) => loading.delete(name) },
@@ -114,4 +114,13 @@ test('missing output element does not leave controls disabled', async () => {
   ui.click();
   await ui.settle();
   assertReady(ui);
+});
+
+test('page-only reports work when the URL field is disabled', async () => {
+  const ui = screen([{ success: true }], false, true);
+  ui.click();
+  await ui.settle();
+  assertReady(ui);
+  assert.equal(ui.requests[0].target_url, '');
+  assert.equal(ui.output.children[0].className, 'krbl-msg success');
 });

@@ -3,7 +3,7 @@
  * Plugin Name:       Kreativ Report Broken Link
  * Plugin URI:        https://wordpress.org/plugins/kreativ-report-broken-link/
  * Description:       Adds a “Report Broken Link” button on selected post types and stores reports in the dashboard. Optional email notifications.
- * Version:           1.5.0
+ * Version:           1.5.1
  * Author:            Andrei Olaru
  * Author URI:        https://kreativfont.com
  * License:           GPL-2.0+
@@ -22,13 +22,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class KRBL_Plugin {
 
-	const VERSION             = '1.5.0';
+	const VERSION             = '1.5.1';
 	const TABLE               = 'broken_link_reports';
 	const NONCE               = 'krbl_nonce';
 	const OPTION_NOTIFY_EMAIL = 'krbl_notify_email';
 	const OPTION_POST_TYPES   = 'krbl_enabled_post_types';
 	const OPTION_RETENTION    = 'krbl_retention_days';
 	const OPTION_ANONYMIZE_IP = 'krbl_anonymize_ip';
+	const OPTION_TARGET_URL   = 'krbl_allow_target_url';
 	const OPTION_LAST_CLEANUP = 'krbl_last_cleanup';
 	const OPTION_DB_VERSION   = 'krbl_db_version';
 	const DB_VERSION          = '1.5.0.1';
@@ -232,6 +233,7 @@ final class KRBL_Plugin {
 		add_option( self::OPTION_POST_TYPES, array( 'post' ) );
 		add_option( self::OPTION_RETENTION, 0 );
 		add_option( self::OPTION_ANONYMIZE_IP, 0 );
+		add_option( self::OPTION_TARGET_URL, 0 );
 
 		$this->maybe_upgrade_schema();
 		$this->sync_cleanup_schedule();
@@ -368,6 +370,16 @@ final class KRBL_Plugin {
 			)
 		);
 
+		register_setting(
+			'krbl_settings',
+			self::OPTION_TARGET_URL,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( $this, 'sanitize_checkbox' ),
+				'default'           => 0,
+			)
+		);
+
 		add_settings_section(
 			'krbl_main',
 			__( 'Notifications', 'kreativ-report-broken-link' ),
@@ -418,6 +430,22 @@ final class KRBL_Plugin {
 				echo '</fieldset>';
 
 				echo '<p class="description">' . esc_html__( 'Tip: enable Pages if your site has static content pages where users might hit broken links.', 'kreativ-report-broken-link' ) . '</p>';
+			},
+			'krbl_settings',
+			'krbl_display'
+		);
+
+		add_settings_field(
+			self::OPTION_TARGET_URL,
+			__( 'Broken Link URL Field', 'kreativ-report-broken-link' ),
+			function () {
+				$enabled = (int) get_option( self::OPTION_TARGET_URL, 0 );
+				echo '<label>';
+				echo '<input type="hidden" name="' . esc_attr( self::OPTION_TARGET_URL ) . '" value="0" />';
+				echo '<input type="checkbox" name="' . esc_attr( self::OPTION_TARGET_URL ) . '" value="1" ' . checked( 1, $enabled, false ) . ' />';
+				echo ' ' . esc_html__( 'Let visitors optionally add the broken link URL.', 'kreativ-report-broken-link' );
+				echo '</label>';
+				echo '<p class="description">' . esc_html__( 'Visitors can expand the field when reporting a link. Disabled by default.', 'kreativ-report-broken-link' ) . '</p>';
 			},
 			'krbl_settings',
 			'krbl_display'
@@ -577,10 +605,18 @@ final class KRBL_Plugin {
 
 		$post_id = get_the_ID();
 
+		$target_field = '';
+		if ( (bool) get_option( self::OPTION_TARGET_URL, 0 ) ) {
+			$target_field = '
+			<details class="krbl-target-details">
+				<summary>' . esc_html__( 'Add broken link URL', 'kreativ-report-broken-link' ) . '</summary>
+				<label class="krbl-target-label" for="krbl-target-url-' . esc_attr( $post_id ) . '">' . esc_html__( 'Broken link URL (optional)', 'kreativ-report-broken-link' ) . '</label>
+				<input type="url" class="krbl-target-url" id="krbl-target-url-' . esc_attr( $post_id ) . '" placeholder="' . esc_attr__( 'https://example.com/broken-page', 'kreativ-report-broken-link' ) . '" />
+			</details>';
+		}
+
 		$button = '
-		<div class="krbl-report-container">
-			<label class="krbl-target-label" for="krbl-target-url-' . esc_attr( $post_id ) . '">' . esc_html__( 'Broken link URL (optional)', 'kreativ-report-broken-link' ) . '</label>
-			<input type="url" class="krbl-target-url" id="krbl-target-url-' . esc_attr( $post_id ) . '" placeholder="' . esc_attr__( 'https://example.com/broken-page', 'kreativ-report-broken-link' ) . '" />
+		<div class="krbl-report-container">' . $target_field . '
 			<button type="button" class="krbl-report-btn" data-post="' . esc_attr( $post_id ) . '">
 				<span class="krbl-flag" aria-hidden="true">🚩</span>
 				<span class="krbl-text">' . esc_html__( 'Report broken links on this page', 'kreativ-report-broken-link' ) . '</span>
