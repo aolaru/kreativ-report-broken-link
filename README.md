@@ -9,7 +9,9 @@ Let visitors flag broken links without crawling your site. Review reports in you
 * Resolve, ignore, or reopen reports.
 * Export reports to CSV.
 * Choose supported post types and email notifications.
+* Customize the report button text and place it before or after content.
 * Control IP masking and automatic report retention.
+* Access feedback, support, and review links from the plugin's admin pages.
 
 ## Installation
 
@@ -18,7 +20,7 @@ Let visitors flag broken links without crawling your site. Review reports in you
 
 Enable **Broken Link URL Field** in Settings to offer visitors a collapsed optional URL field. It is disabled by default, including on existing installations.
 
-The report button appears at the end of content on enabled posts, pages, and public custom post types. The plugin relies on visitor reports and does not automatically scan links.
+The report button appears after content by default on enabled posts, pages, and public custom post types. Choose another placement or custom text in Settings. The Reports page includes a getting-started checklist. The plugin relies on visitor reports and does not automatically scan links.
 
 Reports store the page URL, optional broken URL, timestamp, visitor IP, and a site-salted IP hash for duplicate protection. IP masking applies to new reports. Retention cleanup uses WP-Cron; 0 days keeps reports indefinitely.
 

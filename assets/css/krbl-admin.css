@@ -1,4 +1,25 @@
 /* KRBL admin UI styles */
+.krbl-getting-started{
+  margin:12px 0;
+  padding:12px 16px;
+  background:#fff;
+  border:1px solid #c3c4c7;
+}
+
+.krbl-getting-started summary{
+  cursor:pointer;
+  font-weight:600;
+}
+
+.krbl-getting-started summary:focus-visible{
+  outline:2px solid #2271b1;
+  outline-offset:3px;
+}
+
+.krbl-getting-started ol{
+  margin:12px 0 0 20px;
+}
+
 .krbl-actions-bar{
   display:flex;
   align-items:center;

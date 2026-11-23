@@ -4,6 +4,13 @@
   border-top:1px solid rgba(0,0,0,.08);
 }
 
+.krbl-report-container.krbl-placement-before{
+  margin:0 0 24px;
+  padding:0 0 16px;
+  border-top:0;
+  border-bottom:1px solid rgba(0,0,0,.08);
+}
+
 .krbl-target-details{
   margin:0 0 10px;
 }

@@ -11,6 +11,8 @@ delete_option( 'krbl_enabled_post_types' );
 delete_option( 'krbl_retention_days' );
 delete_option( 'krbl_anonymize_ip' );
 delete_option( 'krbl_allow_target_url' );
+delete_option( 'krbl_button_label' );
+delete_option( 'krbl_button_placement' );
 delete_option( 'krbl_last_cleanup' );
 delete_option( 'krbl_db_version' );
 wp_clear_scheduled_hook( 'krbl_cleanup_reports' );

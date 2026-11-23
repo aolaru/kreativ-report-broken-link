@@ -3,7 +3,7 @@
  * Plugin Name:       Kreativ Report Broken Link
  * Plugin URI:        https://wordpress.org/plugins/kreativ-report-broken-link/
  * Description:       Adds a “Report Broken Link” button on selected post types and stores reports in the dashboard. Optional email notifications.
- * Version:           1.5.1
+ * Version:           1.5.2
  * Author:            Andrei Olaru
  * Author URI:        https://kreativfont.com
  * License:           GPL-2.0+
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class KRBL_Plugin {
 
-	const VERSION             = '1.5.1';
+	const VERSION             = '1.5.2';
 	const TABLE               = 'broken_link_reports';
 	const NONCE               = 'krbl_nonce';
 	const OPTION_NOTIFY_EMAIL = 'krbl_notify_email';
@@ -30,6 +30,8 @@ final class KRBL_Plugin {
 	const OPTION_RETENTION    = 'krbl_retention_days';
 	const OPTION_ANONYMIZE_IP = 'krbl_anonymize_ip';
 	const OPTION_TARGET_URL   = 'krbl_allow_target_url';
+	const OPTION_BUTTON_LABEL = 'krbl_button_label';
+	const OPTION_PLACEMENT    = 'krbl_button_placement';
 	const OPTION_LAST_CLEANUP = 'krbl_last_cleanup';
 	const OPTION_DB_VERSION   = 'krbl_db_version';
 	const DB_VERSION          = '1.5.0.1';
@@ -220,6 +222,11 @@ final class KRBL_Plugin {
 		);
 
 		echo '</p>';
+		echo '<p style="font-size:13px;margin:6px 0 0;">';
+		echo '<a href="' . esc_url( 'https://wordpress.org/support/plugin/kreativ-report-broken-link/' ) . '">' . esc_html__( 'Give feedback or get support', 'kreativ-report-broken-link' ) . '</a>';
+		echo ' | ';
+		echo '<a href="' . esc_url( 'https://wordpress.org/support/plugin/kreativ-report-broken-link/reviews/#new-post' ) . '">' . esc_html__( 'Leave an honest review', 'kreativ-report-broken-link' ) . '</a>';
+		echo '</p>';
 	}
 
 
@@ -380,6 +387,26 @@ final class KRBL_Plugin {
 			)
 		);
 
+		register_setting(
+			'krbl_settings',
+			self::OPTION_BUTTON_LABEL,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_button_label' ),
+				'default'           => '',
+			)
+		);
+
+		register_setting(
+			'krbl_settings',
+			self::OPTION_PLACEMENT,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_placement' ),
+				'default'           => 'after',
+			)
+		);
+
 		add_settings_section(
 			'krbl_main',
 			__( 'Notifications', 'kreativ-report-broken-link' ),
@@ -433,6 +460,34 @@ final class KRBL_Plugin {
 			},
 			'krbl_settings',
 			'krbl_display'
+		);
+
+		add_settings_field(
+			self::OPTION_BUTTON_LABEL,
+			__( 'Button Text', 'kreativ-report-broken-link' ),
+			function () {
+				$label = get_option( self::OPTION_BUTTON_LABEL, '' );
+				echo '<input type="text" id="' . esc_attr( self::OPTION_BUTTON_LABEL ) . '" name="' . esc_attr( self::OPTION_BUTTON_LABEL ) . '" value="' . esc_attr( is_string( $label ) ? $label : '' ) . '" maxlength="120" class="regular-text" placeholder="' . esc_attr__( 'Report broken links on this page', 'kreativ-report-broken-link' ) . '" />';
+				echo '<p class="description">' . esc_html__( 'Leave blank to use the default translated text.', 'kreativ-report-broken-link' ) . '</p>';
+			},
+			'krbl_settings',
+			'krbl_display',
+			array( 'label_for' => self::OPTION_BUTTON_LABEL )
+		);
+
+		add_settings_field(
+			self::OPTION_PLACEMENT,
+			__( 'Button Placement', 'kreativ-report-broken-link' ),
+			function () {
+				$placement = $this->sanitize_placement( get_option( self::OPTION_PLACEMENT, 'after' ) );
+				echo '<select id="' . esc_attr( self::OPTION_PLACEMENT ) . '" name="' . esc_attr( self::OPTION_PLACEMENT ) . '">';
+				echo '<option value="after" ' . selected( 'after', $placement, false ) . '>' . esc_html__( 'After content', 'kreativ-report-broken-link' ) . '</option>';
+				echo '<option value="before" ' . selected( 'before', $placement, false ) . '>' . esc_html__( 'Before content', 'kreativ-report-broken-link' ) . '</option>';
+				echo '</select>';
+			},
+			'krbl_settings',
+			'krbl_display',
+			array( 'label_for' => self::OPTION_PLACEMENT )
 		);
 
 		add_settings_field(
@@ -533,6 +588,16 @@ final class KRBL_Plugin {
 		return empty( $value ) ? 0 : 1;
 	}
 
+	/** Sanitize custom button text; an empty value uses the translated default. */
+	public function sanitize_button_label( $value ) {
+		return is_string( $value ) ? wp_html_excerpt( sanitize_text_field( $value ), 120, '' ) : '';
+	}
+
+	/** Restrict placement to the supported positions. */
+	public function sanitize_placement( $value ) {
+		return 'before' === $value ? 'before' : 'after';
+	}
+
 	/**
 	 * Enqueue frontend assets only where needed.
 	 *
@@ -585,7 +650,7 @@ final class KRBL_Plugin {
 	}
 
 	/**
-	 * Append report button to content.
+	 * Add the report button before or after content.
 	 *
 	 * @param string $content Post content.
 	 * @return string
@@ -603,7 +668,12 @@ final class KRBL_Plugin {
 			return $content;
 		}
 
-		$post_id = get_the_ID();
+		$post_id   = get_the_ID();
+		$placement = $this->sanitize_placement( get_option( self::OPTION_PLACEMENT, 'after' ) );
+		$label     = $this->sanitize_button_label( get_option( self::OPTION_BUTTON_LABEL, '' ) );
+		if ( '' === $label ) {
+			$label = __( 'Report broken links on this page', 'kreativ-report-broken-link' );
+		}
 
 		$target_field = '';
 		if ( (bool) get_option( self::OPTION_TARGET_URL, 0 ) ) {
@@ -616,15 +686,15 @@ final class KRBL_Plugin {
 		}
 
 		$button = '
-		<div class="krbl-report-container">' . $target_field . '
+		<div class="krbl-report-container krbl-placement-' . esc_attr( $placement ) . '">' . $target_field . '
 			<button type="button" class="krbl-report-btn" data-post="' . esc_attr( $post_id ) . '">
 				<span class="krbl-flag" aria-hidden="true">🚩</span>
-				<span class="krbl-text">' . esc_html__( 'Report broken links on this page', 'kreativ-report-broken-link' ) . '</span>
+				<span class="krbl-text">' . esc_html( $label ) . '</span>
 			</button>
 			<div class="krbl-output" aria-live="polite"></div>
 		</div>';
 
-		return $content . $button;
+		return 'before' === $placement ? $button . $content : $content . $button;
 	}
 
 	/**
@@ -1205,6 +1275,20 @@ final class KRBL_Plugin {
 		echo '</form>';
 	}
 
+	/** Show a non-disruptive first-use guide on the reports page. */
+	private function render_getting_started() {
+		$settings_url = add_query_arg( array( 'page' => 'krbl_reports', 'tab' => 'settings' ), admin_url( 'admin.php' ) );
+		echo '<details class="krbl-getting-started">';
+		echo '<summary>' . esc_html__( 'Getting started: setup checklist', 'kreativ-report-broken-link' ) . '</summary>';
+		echo '<ol>';
+		echo '<li>' . esc_html__( 'Choose the post types where the report button should appear.', 'kreativ-report-broken-link' ) . '</li>';
+		echo '<li>' . esc_html__( 'Check the notification email, or leave it blank to disable email.', 'kreativ-report-broken-link' ) . '</li>';
+		echo '<li>' . esc_html__( 'Visit an enabled published page, submit a test report, and check the Reports tab.', 'kreativ-report-broken-link' ) . '</li>';
+		echo '</ol>';
+		echo '<p><a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Open Settings', 'kreativ-report-broken-link' ) . '</a></p>';
+		echo '</details>';
+	}
+
 	/**
 	 * Get cached overview count by status.
 	 *
@@ -1442,6 +1526,7 @@ final class KRBL_Plugin {
 		);
 
 		echo '<h1>' . esc_html__( 'Broken Link Reports', 'kreativ-report-broken-link' ) . '</h1>';
+		$this->render_getting_started();
 
 		// Notices (shown after redirect).
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading message param.

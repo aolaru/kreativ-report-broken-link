@@ -4,7 +4,7 @@ Tags: broken link, dead link, report link, internal links, maintenance
 Requires at least: 5.8
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.5.1
+Stable tag: 1.5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,7 +21,9 @@ Let visitors flag broken links without crawling your site. Review reports in you
 * Resolve, ignore, or reopen reports.
 * Export reports to CSV.
 * Choose supported post types and email notifications.
+* Customize the report button text and placement.
 * Control IP masking and automatic report retention.
+* Find feedback, support, and review links on the plugin's admin pages.
 
 == Installation ==
 
@@ -37,7 +39,7 @@ No. Visitors submit reports; the plugin does not crawl or automatically check li
 
 = Where does the report button appear? =
 
-At the end of content on enabled posts, pages, and public custom post types. Choose these in the Settings tab.
+Before or after content on enabled posts, pages, and public custom post types. Choose the placement and post types in the Settings tab; the default is after content.
 
 = Can visitors specify the broken URL? =
 
@@ -72,6 +74,11 @@ Adds exact broken URL capture, internal/external classification, and report filt
 Renames the admin menu to Broken Links and moves settings into a tab on the same admin page.
 
 == Changelog ==
+= 1.5.2 =
+* Added feedback, support, and honest review links to the Reports and Settings pages.
+* Added a getting-started checklist to the Reports page.
+* Added settings for button text and placement before or after content.
+
 = 1.5.1 =
 * Added a setting to enable the optional broken URL field, disabled by default for new and existing installations.
 * Moved the optional URL field behind an expandable toggle when enabled.
