@@ -16,7 +16,7 @@ Let visitors flag broken links without crawling your site. Review reports in you
 ## Installation
 
 1. Install and activate the plugin.
-2. Open **Broken Links > Settings** to choose post types and notifications.
+2. Open **Report Broken Links > Settings** to choose post types and notifications.
 
 Enable **Broken Link URL Field** in Settings to offer visitors a collapsed optional URL field. It is disabled by default, including on existing installations.
 

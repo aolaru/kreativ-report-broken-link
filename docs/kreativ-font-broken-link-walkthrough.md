@@ -10,7 +10,7 @@ In your WordPress dashboard, open **Plugins > Add New Plugin**, search for **Kre
 
 ## 2. Choose where the button appears
 
-Open **Broken Links > Settings**. Under **Enabled Post Types**, choose the public content types where visitors should see the report button, then save your changes. Posts are enabled by default; enable pages or other public post types if you need them.
+Open **Report Broken Links > Settings**. Under **Enabled Post Types**, choose the public content types where visitors should see the report button, then save your changes. Posts are enabled by default; enable pages or other public post types if you need them.
 
 The button is added at the end of the content on enabled individual posts and pages. Its appearance may vary with your theme.
 
@@ -28,7 +28,7 @@ Use a test report only where you are comfortable adding one to your site's repor
 
 ## 5. Review and resolve the report
 
-Return to **Broken Links** in your dashboard. A report identifies the page where it was submitted and, if the visitor provided it, the reported URL. If no URL was supplied, check the page's links to identify the problem.
+Return to **Report Broken Links** in your dashboard. A report identifies the page where it was submitted and, if the visitor provided it, the reported URL. If no URL was supplied, check the page's links to identify the problem.
 
 After investigating and fixing the link, select **Resolve**. You can also **Ignore** a report or **Reopen** one later. Filters help you review reports by status or link type, and **Export CSV** downloads the current filtered list. Reports without a supplied URL have an unknown link type.
 

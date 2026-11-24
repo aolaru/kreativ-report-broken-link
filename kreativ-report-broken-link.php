@@ -1213,7 +1213,7 @@ final class KRBL_Plugin {
 
 		add_menu_page(
 			__( 'Broken Links', 'kreativ-report-broken-link' ),
-			__( 'Broken Links', 'kreativ-report-broken-link' ),
+			__( 'Report Broken Links', 'kreativ-report-broken-link' ),
 			'manage_options',
 			'krbl_reports',
 			array( $this, 'render_admin_page' ),

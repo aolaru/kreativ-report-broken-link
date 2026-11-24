@@ -52,6 +52,7 @@ $menu_positions = array_keys( array_filter( $menu, function ( $item ) {
 	return isset( $item[2] ) && 'krbl_reports' === $item[2];
 } ) );
 check( 1 === count( $menu_positions ) && 81.0 === (float) $menu_positions[0], 'Broken Links menu is positioned after Settings' );
+check( 1 === count( $menu_positions ) && 'Report Broken Links' === $menu[ $menu_positions[0] ][0], 'sidebar menu uses the Report Broken Links label' );
 $menu = $original_menu;
 function submit_report( $target, $ip = '192.0.2.10', $post_id = null ) {
 	$_SERVER['REMOTE_ADDR'] = $ip;
