@@ -1218,7 +1218,7 @@ final class KRBL_Plugin {
 			'krbl_reports',
 			array( $this, 'render_admin_page' ),
 			'dashicons-flag',
-			65
+			81
 		);
 
 		add_submenu_page(
