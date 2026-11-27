@@ -78,6 +78,8 @@ Renames the admin menu to Broken Links and moves settings into a tab on the same
 * Added feedback, support, and honest review links to the Reports and Settings pages.
 * Added a getting-started checklist to the Reports page.
 * Added settings for button text and placement before or after content.
+* Renamed the admin menu to Report Broken Links and moved it after Settings.
+* Updated author and plugin links to KreativWP.
 
 = 1.5.1 =
 * Added a setting to enable the optional broken URL field, disabled by default for new and existing installations.

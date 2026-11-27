@@ -5,7 +5,7 @@
  * Description:       Adds a “Report Broken Link” button on selected post types and stores reports in the dashboard. Optional email notifications.
  * Version:           1.5.2
  * Author:            Andrei Olaru
- * Author URI:        https://kreativfont.com
+ * Author URI:        https://kreativwp.com/
  * License:           GPL-2.0+
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       kreativ-report-broken-link
@@ -93,7 +93,7 @@ final class KRBL_Plugin {
 
 
 	/**
-	 * Add a small, non-intrusive "Visit Kreativ Font" link under the plugin on Plugins page.
+	 * Add a KreativWP link under the plugin on the Plugins page.
 	 *
 	 * @param array  $links Existing meta links.
 	 * @param string $file  Plugin file basename.
@@ -107,8 +107,8 @@ final class KRBL_Plugin {
 
 		$links[] = sprintf(
 			'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
-			esc_url( 'https://kreativfont.com/' ),
-			esc_html__( 'Visit Kreativ Font', 'kreativ-report-broken-link' )
+			esc_url( 'https://kreativwp.com/' ),
+			esc_html__( 'Visit KreativWP', 'kreativ-report-broken-link' )
 		);
 
 		return $links;
@@ -207,9 +207,9 @@ final class KRBL_Plugin {
 		echo '<p style="font-size:13px;color:#646970;margin:0;">';
 
 		/* translators: 1: author name, 2: link open tag, 3: link close tag */
-		$template = __( 'Created by %1$s from %2$sKreativ Font%3$s.', 'kreativ-report-broken-link' );
+		$template = __( 'Created by %1$s from %2$sKreativWP%3$s.', 'kreativ-report-broken-link' );
 
-		$link_open  = '<a href="' . esc_url( 'https://kreativfont.com/' ) . '" target="_blank" rel="noopener noreferrer">';
+		$link_open  = '<a href="' . esc_url( 'https://kreativwp.com/' ) . '" target="_blank" rel="noopener noreferrer">';
 		$link_close = '</a>';
 
 		echo wp_kses_post(

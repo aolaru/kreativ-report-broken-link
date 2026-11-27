@@ -54,6 +54,9 @@ $menu_positions = array_keys( array_filter( $menu, function ( $item ) {
 check( 1 === count( $menu_positions ) && 81.0 === (float) $menu_positions[0], 'Broken Links menu is positioned after Settings' );
 check( 1 === count( $menu_positions ) && 'Report Broken Links' === $menu[ $menu_positions[0] ][0], 'sidebar menu uses the Report Broken Links label' );
 $menu = $original_menu;
+$row_links = fresh_plugin()->add_plugin_row_meta( array(), plugin_basename( dirname( __DIR__ ) . '/kreativ-report-broken-link.php' ) );
+check( 1 === count( $row_links ) && false !== strpos( $row_links[0], 'https://kreativwp.com/' ) && false !== strpos( $row_links[0], 'Visit KreativWP' ), 'plugin row links to KreativWP' );
+check( array( 'existing' ) === fresh_plugin()->add_plugin_row_meta( array( 'existing' ), 'other/plugin.php' ), 'plugin row link does not affect other plugins' );
 function submit_report( $target, $ip = '192.0.2.10', $post_id = null ) {
 	$_SERVER['REMOTE_ADDR'] = $ip;
 	$_POST = array(
@@ -227,11 +230,13 @@ fresh_plugin()->render_admin_page();
 $html = ob_get_clean();
 check( false !== strpos( $html, 'Getting started: setup checklist' ) && false !== strpos( $html, 'tab=settings' ), 'reports page offers a setup checklist with settings link' );
 check( false !== strpos( $html, 'https://wordpress.org/support/plugin/kreativ-report-broken-link/' ) && false !== strpos( $html, 'https://wordpress.org/support/plugin/kreativ-report-broken-link/reviews/#new-post' ), 'reports page includes feedback and review links' );
+check( false !== strpos( $html, 'https://kreativwp.com/' ) && false !== strpos( $html, '>KreativWP</a>' ) && false === strpos( $html, 'kreativfont.com' ), 'reports page footer credits KreativWP' );
 $_GET = array( 'page' => 'krbl_reports', 'tab' => 'settings' );
 ob_start();
 fresh_plugin()->render_admin_page();
 $settings_html = ob_get_clean();
 check( false !== strpos( $settings_html, 'https://wordpress.org/support/plugin/kreativ-report-broken-link/' ) && false !== strpos( $settings_html, 'https://wordpress.org/support/plugin/kreativ-report-broken-link/reviews/#new-post' ), 'settings page includes feedback and review links' );
+check( false !== strpos( $settings_html, 'https://kreativwp.com/' ) && false !== strpos( $settings_html, '>KreativWP</a>' ) && false === strpos( $settings_html, 'kreativfont.com' ), 'settings page footer credits KreativWP' );
 $dom = new DOMDocument();
 @$dom->loadHTML( $html );
 $export = $dom->getElementById( 'krbl-export-csv' );
