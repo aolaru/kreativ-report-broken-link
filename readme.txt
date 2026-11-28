@@ -2,13 +2,13 @@
 Contributors: andreio
 Tags: broken link, dead link, report link, internal links, maintenance
 Requires at least: 5.8
-Tested up to: 6.9
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Let visitors report broken links. Manage reports, filter internal and external URLs, and get optional email alerts.
+Allow visitors to report broken links on your website. Review reports in WordPress and receive optional email notifications.
 
 == Description ==
 
